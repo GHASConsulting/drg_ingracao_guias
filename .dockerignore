@@ -41,3 +41,8 @@ Thumbs.db
 tests/
 test_*.py
 *_test.py
+
+# Banco de dados local
+*.db
+*.sqlite
+*.sqlite3
