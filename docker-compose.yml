@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Aplicação FastAPI
+  drg-api:
+    build: .
+    container_name: drg-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    environment:
+      - DEVELOPMENT=false
+      - DATABASE_TYPE=oracle
+      - LOG_LEVEL=INFO
+      - ORACLE_HOST=${ORACLE_HOST:-localhost}
+      - ORACLE_PORT=${ORACLE_PORT:-1521}
+      - ORACLE_SID=${ORACLE_SID:-XE}
+      - ORACLE_USERNAME=${ORACLE_USERNAME:-drg_user}
+      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-drg_password}
+      - ORACLE_DIR=/opt/oracle/instantclient_21_17
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Banco de dados PostgreSQL (opcional para produção)
+  postgres:
+    image: postgres:15-alpine
+    container_name: drg-postgres
+    environment:
+      POSTGRES_DB: drg_guias
+      POSTGRES_USER: drg_user
+      POSTGRES_PASSWORD: drg_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:

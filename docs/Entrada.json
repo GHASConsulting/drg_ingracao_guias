@@ -1,0 +1,85 @@
+{
+  "loteGuias": {
+    "guia": [
+      {
+        "codigoOperadora": "",
+		"numeroGuia": "",
+		"numeroGuiaOperadora": "",
+		"numeroGuiaInternacao": "",
+		"dataAutorizacao": "",
+		"senha": "",
+		"dataValidade": "",
+		"numeroCarteira": "",
+		"dataValidadeCarteira": "",
+		"rn": "",
+		"dataNascimento": "",
+		"sexo": "",
+		"situacaoBeneficiario": "",
+		"codigoPrestador": "",
+		"nomePrestador": "",
+		"nomeProfissional": "",
+		"codigoProfissional": "",
+		"numeroRegistroProfissional": "",
+		"ufProfissional": "",
+		"codigoCbo": "",
+		"codigoContratado": "",
+		"nomeHospital": "",
+		"dataSugeridaInternacao": "",
+		"caraterAtendimento": "",
+		"tipoInternacao": "",
+		"regimeInternacao": "",
+		"diariasSolicitadas": "",
+		"previsaoUsoOpme": "",
+		"previsaoUsoQuimioterapico": "",
+		"indicacaoClinica": "",
+		"indicacaoAcidente": "",
+		"tipoAcomodacaoSolicitada": "",
+		"dataAdmissaoEstimada": "",
+		"qtdeDiariasAutorizadas": "",
+		"tipoAcomodacaoAutorizada": "",
+		"cnesAutorizado": "",
+		"observacaoGuia": "",
+		"dataSolicitacao": "",
+		"justificativaOperadora": "",
+		"naturezaGuia": "",
+		"guiaComplementar": "",
+		"situacaoGuia": "",
+		"tipoDoenca": "",
+		"tempoDoenca": "",
+		"longaPermanencia": "",
+		"motivoEncerramento": "",
+		"tipoAlta": "",
+		"dataAlta": "",
+		"anexo": [
+            {
+                "numeroLoteDocumento": "",
+				"numeroProtocoloDocumento": "",
+				"formatoDocumento": "",
+				"sequencialDocumento": "",
+				"dataCriacao": ""
+				"nome": "",
+				"urlDocumento": "",
+				"observacaoDocumento": "",
+				"tipoDocumento": ""
+            }
+        ],
+		"procedimento": [
+            {
+                "tabela": "",
+				"codigo": "",
+				"descricao": "",
+				"qtdeSolicitada": "",
+				"valorUnitario": "",
+				"qtdeAutorizada": ""
+            }
+        ],
+		"diagnostico": [
+            {
+                "codigo": "",
+				"tipo": ""
+            }
+        ]
+	  }
+    ]
+  }
+}
