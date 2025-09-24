@@ -181,9 +181,9 @@ class GuiaService:
             json_drg = self.montar_json_drg(guia)
 
             # Enviar para DRG
-            resultado = drg_service.enviar_guias(json_drg)
+            resultado = drg_service.enviar_guia(json_drg)
 
-            if resultado.get("success"):
+            if resultado.get("sucesso"):
                 drg_logger.log_guide_processing(
                     guia.id, guia.numero_guia, json_drg, True, resultado
                 )
@@ -194,12 +194,16 @@ class GuiaService:
                 }
             else:
                 drg_logger.log_guide_processing(
-                    guia.id, guia.numero_guia, json_drg, False, resultado, 
-                    resultado.get('message', 'Erro desconhecido')
+                    guia.id,
+                    guia.numero_guia,
+                    json_drg,
+                    False,
+                    resultado,
+                    resultado.get("erro", "Erro desconhecido"),
                 )
                 return {
                     "sucesso": False,
-                    "erro": resultado.get("message", "Erro ao enviar para DRG"),
+                    "erro": resultado.get("erro", "Erro ao enviar para DRG"),
                     "resposta_drg": resultado,
                 }
 
