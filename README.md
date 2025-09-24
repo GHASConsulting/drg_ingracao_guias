@@ -13,12 +13,9 @@ Sistema para processamento automático e envio de guias de internação para a A
 
 ## 📚 **Documentação**
 
-Para documentação técnica detalhada, consulte a **[pasta docs/](./docs/README.md)**:
-
 - 📄 **API Routes** - Rotas e endpoints
 - 🧪 **Testes** - Como testar a API
 - 📊 **Monitoramento** - Logs e monitoramento automático
-- 🗺️ **Desenvolvimento** - Mapa e regras do projeto
 
 ## 🚀 **Instalação Rápida**
 
