@@ -6,7 +6,7 @@ Sistema para processamento automático e envio de guias de internação para a A
 
 - 🚀 **FastAPI** - Framework moderno e rápido
 - 🗄️ **Multi-banco** - Oracle, PostgreSQL, SQLite
-- 🤖 **Monitoramento Automático** - Processa guias em tempo real
+- 🤖 **Monitoramento Automático** - Processa guias em lote (até 10 por vez)
 - 📊 **Logs Detalhados** - Rastreamento completo de operações
 - 🐳 **Docker Ready** - Deploy simplificado
 - 📋 **API REST** - Endpoints completos para integração
@@ -267,7 +267,7 @@ python tests/adicionar_guias.py
 
 ### **🤖 Monitoramento Automático**
 
-O sistema monitora automaticamente a tabela de guias e processa guias aguardando:
+O sistema monitora automaticamente a tabela de guias e processa **até 10 guias por vez em lote** para otimizar performance:
 
 ```bash
 # Verificar status
@@ -392,7 +392,7 @@ DATABASE_TYPE=sqlite
 ## 📝 **Changelog**
 
 - ✅ **FastAPI** - Migração completa do Flask
-- ✅ **Monitoramento Automático** - Processamento em tempo real
+- ✅ **Monitoramento Automático** - Processamento em lote (até 10 guias por vez)
 - ✅ **Logs Detalhados** - Rastreamento completo
 - ✅ **Docker** - Containerização completa
 - ✅ **Multi-banco** - Oracle, PostgreSQL, SQLite
