@@ -1,11 +1,15 @@
 from datetime import datetime
 from typing import Dict, Any
+import logging
 from app.models import Guia, Anexo, Procedimento, Diagnostico
 from app.utils.logger import drg_logger
 
 
 class GuiaService:
     """Serviço para operações com guias."""
+
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
 
     def montar_json_drg(self, guia: Guia) -> Dict[str, Any]:
         """Monta o JSON no formato esperado pela API DRG."""
@@ -209,4 +213,54 @@ class GuiaService:
 
         except Exception as e:
             drg_logger.log_error(f"Erro ao processar guia {guia.numero_guia}: {str(e)}")
+            return {"sucesso": False, "erro": str(e)}
+
+    def processar_lote_guias(self, guias: list, drg_service) -> Dict[str, Any]:
+        """Processa um lote de guias: monta JSON e envia para DRG."""
+        try:
+            if not guias:
+                return {"sucesso": False, "erro": "Nenhuma guia fornecida"}
+
+            self.logger.info(f"📦 Processando lote de {len(guias)} guias")
+
+            # Montar JSON do lote
+            json_lote = self.montar_lote_drg(guias)
+
+            # Enviar lote para DRG
+            resultado = drg_service.enviar_lote(json_lote)
+
+            if resultado.get("sucesso"):
+                # Log do lote completo
+                drg_logger.log_guide_processing(
+                    f"lote_{len(guias)}", 
+                    f"Lote de {len(guias)} guias", 
+                    json_lote, 
+                    True, 
+                    resultado
+                )
+                
+                return {
+                    "sucesso": True,
+                    "mensagem": f"Lote de {len(guias)} guias processado com sucesso",
+                    "resposta_drg": resultado,
+                }
+            else:
+                # Log do erro do lote
+                drg_logger.log_guide_processing(
+                    f"lote_{len(guias)}",
+                    f"Lote de {len(guias)} guias",
+                    json_lote,
+                    False,
+                    resultado,
+                    resultado.get("erro", "Erro desconhecido"),
+                )
+                
+                return {
+                    "sucesso": False,
+                    "erro": resultado.get("erro", "Erro ao enviar lote para DRG"),
+                    "resposta_drg": resultado,
+                }
+
+        except Exception as e:
+            drg_logger.log_error(f"Erro ao processar lote de {len(guias)} guias: {str(e)}")
             return {"sucesso": False, "erro": str(e)}

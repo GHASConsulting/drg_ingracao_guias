@@ -110,6 +110,133 @@ class DRGService:
         except Exception as e:
             return {"sucesso": False, "erro": f"Erro ao enviar guia: {str(e)}"}
 
+    def enviar_lote(self, json_lote: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Envia lote de guias para a API DRG com gerenciamento automático de token.
+
+        Implementa estratégia híbrida:
+        1. Tenta com token válido (renovação preventiva)
+        2. Se falhar por token expirado, renova e tenta novamente
+        """
+        try:
+            # Obter token válido (renovação preventiva a cada 3:30h)
+            token = self.token_manager.get_valid_token()
+
+            # Primeira tentativa de envio
+            result = self._enviar_lote_com_token(json_lote, token)
+
+            # Se sucesso, retornar
+            if result["sucesso"]:
+                return result
+
+            # Se falhou por token expirado, tentar novamente com token renovado
+            if is_token_expired_error(result.get("erro", "")):
+                token = self.token_manager.force_refresh()
+                return self._enviar_lote_com_token(json_lote, token)
+
+            # Se falhou por outro motivo, retornar erro
+            return result
+
+        except Exception as e:
+            return {"sucesso": False, "erro": f"Erro ao enviar lote: {str(e)}"}
+
+    def _enviar_lote_com_token(self, json_lote: Dict[str, Any], token: str) -> Dict[str, Any]:
+        """
+        Envia lote de guias usando token específico.
+
+        Args:
+            json_lote: Dados do lote em JSON
+            token: Token JWT para autenticação
+
+        Returns:
+            Dict: Resultado do envio
+        """
+        try:
+            # Headers para envio (formato correto da API DRG)
+            headers = {"Content-Type": "application/json", "Authorization": token}
+
+            # Log da requisição de envio
+            drg_logger.log_request("POST", self.drg_url, headers, json_data=json_lote)
+
+            # Fazer requisição de envio
+            response = requests.post(
+                self.drg_url, json=json_lote, headers=headers, timeout=60
+            )
+
+            # Log da resposta
+            drg_logger.log_response(response)
+
+            # Verificar status da resposta
+            if response.status_code == 200:
+                # Sucesso - processar resposta
+                try:
+                    response_json = response.json()
+                    drg_logger.log_guide_processing(
+                        f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                        f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                        json_lote,
+                        True,
+                        response_json,
+                    )
+                    return {"sucesso": True, "resposta": response_json}
+                except json.JSONDecodeError:
+                    # Resposta não é JSON válido
+                    drg_logger.log_guide_processing(
+                        f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                        f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                        json_lote,
+                        False,
+                        None,
+                        f"Resposta não é JSON válido: {response.text[:200]}",
+                    )
+                    return {"sucesso": False, "erro": f"Resposta inválida: {response.text[:200]}"}
+            else:
+                # Erro HTTP
+                error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                drg_logger.log_guide_processing(
+                    f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                    f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                    json_lote,
+                    False,
+                    None,
+                    error_msg,
+                )
+                return {"sucesso": False, "erro": error_msg}
+
+        except requests.exceptions.Timeout:
+            error_msg = "Timeout na requisição (60s)"
+            drg_logger.log_guide_processing(
+                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                json_lote,
+                False,
+                None,
+                error_msg,
+            )
+            return {"sucesso": False, "erro": error_msg}
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição: {str(e)}"
+            drg_logger.log_guide_processing(
+                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                json_lote,
+                False,
+                None,
+                error_msg,
+            )
+            return {"sucesso": False, "erro": error_msg}
+        except Exception as e:
+            error_msg = f"Erro inesperado: {str(e)}"
+            drg_logger.log_guide_processing(
+                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                json_lote,
+                False,
+                None,
+                error_msg,
+            )
+            return {"sucesso": False, "erro": error_msg}
+
     def _enviar_com_token(self, json_drg: Dict[str, Any], token: str) -> Dict[str, Any]:
         """
         Envia guia usando token específico.

@@ -12,7 +12,8 @@ services:
       - ./.env:/app/.env
     environment:
       - DEVELOPMENT=false
-      - DATABASE_TYPE=oracle
+      - DATABASE_TYPE=${DATABASE_TYPE:-postgresql}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://drg_user:drg_password@postgres:5432/drg_guias}
       - LOG_LEVEL=INFO
       - ORACLE_HOST=${ORACLE_HOST:-localhost}
       - ORACLE_PORT=${ORACLE_PORT:-1521}

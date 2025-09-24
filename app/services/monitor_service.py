@@ -86,7 +86,7 @@ class MonitorService:
             self._running = False
 
     async def _process_pending_guias(self):
-        """Processa guias pendentes"""
+        """Processa guias pendentes em lote"""
         try:
             # Obter sessão do banco
             session = get_session()
@@ -108,23 +108,66 @@ class MonitorService:
                     f"📋 Encontradas {len(guias_pendentes)} guias pendentes"
                 )
 
-                # Processar cada guia
-                for guia in guias_pendentes:
-                    try:
-                        await self._process_single_guia(session, guia)
-                    except Exception as e:
-                        self.logger.error(f"❌ Erro ao processar guia {guia.id}: {e}")
-                        # Marcar como erro
-                        guia.tp_status = "E"
-                        guia.mensagem_erro = f"Erro no monitoramento: {str(e)}"
-                        guia.tentativas += 1
-                        session.commit()
+                # Processar lote de guias
+                await self._process_lote_guias(session, guias_pendentes)
 
             finally:
                 session.close()
 
         except Exception as e:
             self.logger.error(f"❌ Erro ao acessar banco de dados: {e}")
+
+    async def _process_lote_guias(self, session: Session, guias: List[Guia]):
+        """Processa um lote de guias"""
+        try:
+            self.logger.info(f"🚀 Processando lote de {len(guias)} guias")
+
+            # Marcar todas as guias como processando
+            for guia in guias:
+                guia.tp_status = "P"
+                guia.tentativas += 1
+                guia.data_processamento = datetime.utcnow()
+
+            session.commit()
+
+            # Processar lote usando GuiaService
+            resultado = self.guia_service.processar_lote_guias(guias, self.drg_service)
+
+            if resultado.get("sucesso"):
+                # Sucesso - marcar todas como transmitidas
+                for guia in guias:
+                    guia.tp_status = "T"
+                    guia.mensagem_erro = None
+
+                self.logger.info(
+                    f"✅ Lote de {len(guias)} guias processado com sucesso"
+                )
+            else:
+                # Erro - marcar todas como erro
+                erro_msg = resultado.get("erro", "Erro desconhecido")
+                for guia in guias:
+                    guia.tp_status = "E"
+                    guia.mensagem_erro = erro_msg
+
+                self.logger.error(f"❌ Erro ao processar lote: {erro_msg}")
+
+            # Atualizar data de processamento
+            for guia in guias:
+                guia.data_processamento = datetime.utcnow()
+
+            session.commit()
+
+        except Exception as e:
+            # Erro crítico - marcar todas como erro
+            for guia in guias:
+                guia.tp_status = "E"
+                guia.mensagem_erro = f"Erro crítico: {str(e)}"
+                guia.tentativas += 1
+                guia.data_processamento = datetime.utcnow()
+
+            session.commit()
+            self.logger.error(f"❌ Erro crítico ao processar lote: {e}")
+            raise
 
     async def _process_single_guia(self, session: Session, guia: Guia):
         """Processa uma única guia"""
