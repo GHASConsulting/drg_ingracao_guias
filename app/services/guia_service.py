@@ -232,13 +232,13 @@ class GuiaService:
             if resultado.get("sucesso"):
                 # Log do lote completo
                 drg_logger.log_guide_processing(
-                    f"lote_{len(guias)}", 
-                    f"Lote de {len(guias)} guias", 
-                    json_lote, 
-                    True, 
-                    resultado
+                    f"lote_{len(guias)}",
+                    f"Lote de {len(guias)} guias",
+                    json_lote,
+                    True,
+                    resultado,
                 )
-                
+
                 return {
                     "sucesso": True,
                     "mensagem": f"Lote de {len(guias)} guias processado com sucesso",
@@ -254,7 +254,7 @@ class GuiaService:
                     resultado,
                     resultado.get("erro", "Erro desconhecido"),
                 )
-                
+
                 return {
                     "sucesso": False,
                     "erro": resultado.get("erro", "Erro ao enviar lote para DRG"),
@@ -262,5 +262,7 @@ class GuiaService:
                 }
 
         except Exception as e:
-            drg_logger.log_error(f"Erro ao processar lote de {len(guias)} guias: {str(e)}")
+            drg_logger.log_error(
+                f"Erro ao processar lote de {len(guias)} guias: {str(e)}"
+            )
             return {"sucesso": False, "erro": str(e)}

@@ -164,7 +164,11 @@ class DRGService:
             )
 
             # Log da resposta
-            drg_logger.log_response(response)
+            drg_logger.log_response(
+                response.status_code,
+                dict(response.headers),
+                response.text
+            )
 
             # Verificar status da resposta
             if response.status_code == 200:
