@@ -106,27 +106,148 @@ MONITOR_INTERVAL_MINUTES=5
 
 ## 🐳 **Docker**
 
-### **Desenvolvimento (SQLite)**
+### **📋 Pré-requisitos**
 
 ```bash
-docker-compose up --build
+# Verificar se Docker está instalado
+docker --version
+docker-compose --version
+
+# Se não estiver instalado, instale o Docker Desktop:
+# https://www.docker.com/products/docker-desktop/
 ```
 
-### **Produção (Oracle)**
+### **🚀 Comandos Docker Completos**
+
+#### **1. Desenvolvimento (SQLite)**
 
 ```bash
-# Configure .env com Oracle
+# Parar containers existentes (se houver)
+docker-compose down
+
+# Construir e iniciar containers
+docker-compose up --build
+
+# Executar em background (detached)
+docker-compose up --build -d
+
+# Ver logs em tempo real
+docker-compose logs -f
+
+# Parar containers
+docker-compose down
+```
+
+#### **2. Produção (Oracle)**
+
+```bash
+# 1. Configurar .env para Oracle
 DATABASE_TYPE=oracle
 ORACLE_HOST=servidor_oracle
-# ... outras configurações Oracle
+ORACLE_PORT=1521
+ORACLE_SID=XE
+ORACLE_USERNAME=usuario
+ORACLE_PASSWORD=senha
+ORACLE_DIR=/opt/oracle/instantclient_21_17
 
-docker-compose up --build
+# 2. Construir e executar
+docker-compose up --build -d
+
+# 3. Verificar se está funcionando
+docker-compose ps
+docker-compose logs drg-api
 ```
 
-### **Com PostgreSQL**
+#### **3. Com PostgreSQL**
 
 ```bash
-docker-compose --profile production up --build
+# Usar profile production (inclui PostgreSQL)
+docker-compose --profile production up --build -d
+
+# Verificar containers
+docker-compose --profile production ps
+
+# Ver logs
+docker-compose --profile production logs
+```
+
+### **🔧 Comandos Úteis**
+
+```bash
+# Entrar no container da aplicação
+docker-compose exec drg-api bash
+
+# Ver logs da aplicação
+docker-compose logs drg-api
+
+# Reiniciar apenas a aplicação
+docker-compose restart drg-api
+
+# Reconstruir apenas a aplicação
+docker-compose up --build drg-api
+
+# Limpar tudo (cuidado!)
+docker-compose down -v
+docker system prune -f
+```
+
+### **📊 Monitoramento Docker**
+
+```bash
+# Ver status dos containers
+docker-compose ps
+
+# Ver uso de recursos
+docker stats
+
+# Ver logs em tempo real
+docker-compose logs -f drg-api
+
+# Verificar saúde da aplicação
+docker-compose exec drg-api curl http://localhost:8000/api/v1/health
+```
+
+### **🆘 Troubleshooting Docker**
+
+#### **Problemas Comuns:**
+
+```bash
+# Container não inicia
+docker-compose logs drg-api
+
+# Porta 8000 já está em uso
+# Pare outros serviços ou mude a porta no docker-compose.yml
+
+# Erro de permissão (Linux/Mac)
+sudo docker-compose up --build
+
+# Limpar cache do Docker
+docker-compose down
+docker system prune -f
+docker-compose up --build
+
+# Reconstruir do zero
+docker-compose down -v
+docker rmi $(docker images -q)
+docker-compose up --build
+
+# Verificar se .env existe
+ls -la .env
+cp env.example .env
+```
+
+#### **Verificações:**
+
+```bash
+# Verificar se Docker está rodando
+docker ps
+
+# Verificar se porta 8000 está livre
+# Windows: netstat -an | findstr 8000
+# Linux/Mac: lsof -i :8000
+
+# Testar conectividade
+curl http://localhost:8000/api/v1/health
 ```
 
 ## 🧪 **Testes**
