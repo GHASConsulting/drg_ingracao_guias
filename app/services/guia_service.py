@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Dict, Any
 from app.models import Guia, Anexo, Procedimento, Diagnostico
+from app.utils.logger import drg_logger
 
 
 class GuiaService:
@@ -172,3 +173,58 @@ class GuiaService:
                 guias_json.extend(guia_json["loteGuias"]["guia"])
 
         return {"loteGuias": {"guia": guias_json}}
+
+    def processar_guia_completa(self, guia: Guia, drg_service) -> Dict[str, Any]:
+        """Processa uma guia completa: monta JSON e envia para DRG."""
+        try:
+            # Log do início do processamento
+            drg_logger.log_guide_processing(
+                guia.id, 
+                guia.numero_guia, 
+                "Iniciando processamento da guia"
+            )
+            
+            # Montar JSON da guia
+            json_drg = self.montar_json_drg(guia)
+            
+            # Log do JSON montado
+            drg_logger.log_guide_processing(
+                guia.id, 
+                guia.numero_guia, 
+                "JSON montado com sucesso"
+            )
+            
+            # Enviar para DRG
+            resultado = drg_service.enviar_guias(json_drg)
+            
+            if resultado.get("success"):
+                drg_logger.log_guide_processing(
+                    guia.id, 
+                    guia.numero_guia, 
+                    "Guia enviada para DRG com sucesso"
+                )
+                return {
+                    "sucesso": True,
+                    "mensagem": "Guia processada com sucesso",
+                    "resposta_drg": resultado
+                }
+            else:
+                drg_logger.log_guide_processing(
+                    guia.id, 
+                    guia.numero_guia, 
+                    f"Erro ao enviar para DRG: {resultado.get('message', 'Erro desconhecido')}"
+                )
+                return {
+                    "sucesso": False,
+                    "erro": resultado.get("message", "Erro ao enviar para DRG"),
+                    "resposta_drg": resultado
+                }
+                
+        except Exception as e:
+            drg_logger.log_error(
+                f"Erro ao processar guia {guia.numero_guia}: {str(e)}"
+            )
+            return {
+                "sucesso": False,
+                "erro": str(e)
+            }
