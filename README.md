@@ -26,7 +26,7 @@ Para documentação técnica detalhada, consulte a **[pasta docs/](./docs/README
 
 ```bash
 # 1. Clone o repositório
-git clone <url-do-repositorio>
+git clone https://github.com/GHASConsulting/drg_ingracao_guias.git
 cd drg_guias
 
 # 2. Configure o ambiente
