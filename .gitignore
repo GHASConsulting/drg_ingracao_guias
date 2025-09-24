@@ -88,8 +88,7 @@ dump.rdb
 *.backup
 
 # Documentation
-docs/_build/
-docs/build/
+docs/
 
 # Migration files (keep structure, ignore specific migrations)
 migrations/versions/*.py
