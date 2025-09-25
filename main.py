@@ -3,19 +3,29 @@
 FastAPI Application para Sistema DRG - Guias de Internação
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+
+# Rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Configurar rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 # Importar configurações e serviços
 from app.config.config import get_settings
 from app.database.database import init_db
 from app.services.monitor_service import monitor_service
+from app.middleware.security import setup_security_middleware
 
 
 @asynccontextmanager
@@ -54,12 +64,19 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Configurar CORS
+    # Configurar rate limiting
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Configurar middleware de segurança
+    setup_security_middleware(app)
+
+    # Configurar CORS (mais restritivo em produção)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Em produção, especificar domínios
+        allow_origins=["*"],  # Em produção, especificar domínios específicos
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST"],  # Apenas métodos necessários
         allow_headers=["*"],
     )
 

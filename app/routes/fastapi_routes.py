@@ -3,12 +3,16 @@
 Rotas FastAPI para o sistema DRG
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, Path, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 import logging
+
+# Rate limiting
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.database.database import get_db
 from app.models import Guia, Anexo, Procedimento, Diagnostico
@@ -32,9 +36,13 @@ logger = logging.getLogger(__name__)
 # Criar router
 router = APIRouter()
 
+# Rate limiter para as rotas
+limiter = Limiter(key_func=get_remote_address)
+
 
 @router.get("/health", response_model=dict)
-async def health_check():
+@limiter.limit("100/minute")
+async def health_check(request: Request):
     """Verifica saúde da API."""
     try:
         return {
@@ -56,7 +64,8 @@ async def health_check():
 
 
 @router.get("/status", response_model=dict)
-async def system_status(db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+async def system_status(request: Request, db: Session = Depends(get_db)):
     """Retorna status do sistema."""
     try:
         # Contar guias por status
@@ -103,7 +112,9 @@ async def system_status(db: Session = Depends(get_db)):
 
 
 @router.get("/guias", response_model=List[GuiaResponseSchema])
+@limiter.limit("60/minute")
 async def listar_guias(
+    request: Request,
     status: Optional[str] = Query(None, description="Filtrar por status"),
     limit: int = Query(50, ge=1, le=100, description="Limite de resultados"),
     offset: int = Query(0, ge=0, description="Offset para paginação"),

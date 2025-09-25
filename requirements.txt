@@ -23,6 +23,9 @@ structlog==23.1.0
 requests==2.31.0
 httpx==0.25.2
 
+# Segurança
+slowapi==0.1.9
+
 # Testes
 pytest==7.4.2
 pytest-cov==4.1.0
