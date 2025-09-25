@@ -8,14 +8,18 @@ Sistema para processamento automático e envio de guias de internação para a A
 - 🗄️ **Multi-banco** - Oracle, PostgreSQL, SQLite
 - 🤖 **Monitoramento Automático** - Processa guias em lote (até 10 por vez)
 - 📊 **Logs Detalhados** - Rastreamento completo de operações
-- 🐳 **Docker Ready** - Deploy simplificado
+- 🐳 **Docker Ready** - Deploy simplificado com Docker Compose
 - 📋 **API REST** - Endpoints completos para integração
+- 🔒 **Segurança** - Rate limiting e middleware de segurança
+- ⚡ **Processamento em Tempo Real** - Monitoramento automático configurável
 
 ## 📚 **Documentação**
 
-- 📄 **API Routes** - Rotas e endpoints
+- 📄 **API Routes** - Rotas e endpoints da API
+- 🗄️ **Database Schema** - Estrutura das tabelas e procedures
 - 🧪 **Testes** - Como testar a API
 - 📊 **Monitoramento** - Logs e monitoramento automático
+- 🔒 **Segurança** - Configurações de segurança implementadas
 
 ## 🚀 **Instalação Rápida**
 
@@ -31,7 +35,7 @@ cp env.example .env
 # Edite o .env com suas configurações
 
 # 3. Execute com Docker
-docker-compose up --build
+docker compose --profile production up --build -d
 ```
 
 **Acesse:** http://localhost:8000/docs
@@ -92,6 +96,10 @@ DRG_API_KEY=sua_chave
 # Monitoramento Automático
 AUTO_MONITOR_ENABLED=True
 MONITOR_INTERVAL_MINUTES=5
+
+# Segurança (Opcional)
+RATE_LIMIT_ENABLED=True
+MAX_REQUESTS_PER_MINUTE=100
 ```
 
 ### **🗄️ Bancos Suportados**
@@ -155,36 +163,42 @@ docker-compose ps
 docker-compose logs drg-api
 ```
 
-#### **3. Com PostgreSQL**
+#### **3. Com PostgreSQL (Recomendado para Produção)**
 
 ```bash
 # Usar profile production (inclui PostgreSQL)
-docker-compose --profile production up --build -d
+docker compose --profile production up --build -d
 
 # Verificar containers
-docker-compose --profile production ps
+docker compose --profile production ps
 
 # Ver logs
-docker-compose --profile production logs
+docker compose --profile production logs
+
+# Testar aplicação
+curl http://localhost:8000/api/v1/health
 ```
 
 ### **🔧 Comandos Úteis**
 
 ```bash
 # Entrar no container da aplicação
-docker-compose exec drg-api bash
+docker compose --profile production exec drg-api bash
 
 # Ver logs da aplicação
-docker-compose logs drg-api
+docker compose --profile production logs drg-api
 
 # Reiniciar apenas a aplicação
-docker-compose restart drg-api
+docker compose --profile production restart drg-api
 
 # Reconstruir apenas a aplicação
-docker-compose up --build drg-api
+docker compose --profile production up --build drg-api
+
+# Parar aplicação
+docker compose --profile production down
 
 # Limpar tudo (cuidado!)
-docker-compose down -v
+docker compose --profile production down -v
 docker system prune -f
 ```
 
@@ -192,16 +206,19 @@ docker system prune -f
 
 ```bash
 # Ver status dos containers
-docker-compose ps
+docker compose --profile production ps
 
 # Ver uso de recursos
 docker stats
 
 # Ver logs em tempo real
-docker-compose logs -f drg-api
+docker compose --profile production logs -f drg-api
 
 # Verificar saúde da aplicação
-docker-compose exec drg-api curl http://localhost:8000/api/v1/health
+docker compose --profile production exec drg-api curl http://localhost:8000/api/v1/health
+
+# Ver logs do PostgreSQL
+docker compose --profile production logs postgres
 ```
 
 ### **🆘 Troubleshooting Docker**
@@ -210,27 +227,30 @@ docker-compose exec drg-api curl http://localhost:8000/api/v1/health
 
 ```bash
 # Container não inicia
-docker-compose logs drg-api
+docker compose --profile production logs drg-api
 
 # Porta 8000 já está em uso
 # Pare outros serviços ou mude a porta no docker-compose.yml
 
 # Erro de permissão (Linux/Mac)
-sudo docker-compose up --build
+sudo docker compose --profile production up --build
 
 # Limpar cache do Docker
-docker-compose down
+docker compose --profile production down
 docker system prune -f
-docker-compose up --build
+docker compose --profile production up --build
 
 # Reconstruir do zero
-docker-compose down -v
+docker compose --profile production down -v
 docker rmi $(docker images -q)
-docker-compose up --build
+docker compose --profile production up --build
 
 # Verificar se .env existe
 ls -la .env
 cp env.example .env
+
+# Verificar logs de segurança
+docker compose --profile production logs drg-api | grep -i "security\|blocked\|rate"
 ```
 
 #### **Verificações:**
@@ -394,6 +414,8 @@ DATABASE_TYPE=sqlite
 - ✅ **FastAPI** - Migração completa do Flask
 - ✅ **Monitoramento Automático** - Processamento em lote (até 10 guias por vez)
 - ✅ **Logs Detalhados** - Rastreamento completo
-- ✅ **Docker** - Containerização completa
+- ✅ **Docker** - Containerização completa com Docker Compose
 - ✅ **Multi-banco** - Oracle, PostgreSQL, SQLite
+- ✅ **Segurança** - Rate limiting e middleware de segurança
 - ✅ **Documentação** - Organizada e completa
+- ✅ **Processamento em Tempo Real** - Monitoramento automático configurável
