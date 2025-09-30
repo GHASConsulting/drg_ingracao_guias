@@ -64,6 +64,7 @@ class GuiaSchema(BaseModel):
     data_nascimento: date
     sexo: str = Field(..., pattern=r"^[MFI]$")
     situacao_beneficiario: str = Field(..., pattern=r"^[AI]$")
+    nome_beneficiario: str = Field(..., min_length=1, max_length=100)
 
     # Dados do prestador
     codigo_prestador: str = Field(..., min_length=1, max_length=14)

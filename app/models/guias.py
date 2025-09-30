@@ -35,6 +35,7 @@ class Guia(Base):
     data_nascimento = Column(DateTime, nullable=False)
     sexo = Column(String(1), nullable=False)  # M/F/I
     situacao_beneficiario = Column(String(1), nullable=False)  # A/I
+    nome_beneficiario = Column(String(100), nullable=False)
 
     # Dados do prestador
     codigo_prestador = Column(String(14), nullable=False)

@@ -36,6 +36,7 @@ class GuiaService:
                         "dataNascimento": self._format_date(guia.data_nascimento),
                         "sexo": guia.sexo,
                         "situacaoBeneficiario": guia.situacao_beneficiario,
+                        "nomeBeneficiario": guia.nome_beneficiario,
                         # Dados do prestador
                         "codigoPrestador": guia.codigo_prestador,
                         "nomePrestador": guia.nome_prestador,
