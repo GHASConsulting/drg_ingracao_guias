@@ -4,20 +4,13 @@ services:
     build: .
     container_name: drg-api
     ports:
-      - "8000:8000"
+      - "${PORT:-8001}:8000"
     volumes:
       - ./logs:/app/logs
       - ./.env:/app/.env
     environment:
       - DEVELOPMENT=false
-      - DATABASE_TYPE=${DATABASE_TYPE:-postgresql}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://drg_user:drg_password@postgres:5432/drg_guias}
       - LOG_LEVEL=INFO
-      - ORACLE_HOST=${ORACLE_HOST:-localhost}
-      - ORACLE_PORT=${ORACLE_PORT:-1521}
-      - ORACLE_SID=${ORACLE_SID:-XE}
-      - ORACLE_USERNAME=${ORACLE_USERNAME:-drg_user}
-      - ORACLE_PASSWORD=${ORACLE_PASSWORD:-drg_password}
       - ORACLE_DIR=/opt/oracle/instantclient_21_17
     restart: unless-stopped
     healthcheck:
@@ -26,22 +19,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # Banco de dados PostgreSQL (opcional para produção)
-  postgres:
-    image: postgres:15-alpine
-    container_name: drg-postgres
-    environment:
-      POSTGRES_DB: drg_guias
-      POSTGRES_USER: drg_user
-      POSTGRES_PASSWORD: drg_password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
-    restart: unless-stopped
     profiles:
       - production
-
-volumes:
-  postgres_data:
