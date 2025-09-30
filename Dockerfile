@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     wget \
     unzip \
-    libaio1 \
+    libaio1t64 \
     libaio-dev \
     && rm -rf /var/lib/apt/lists/*
 
