@@ -12,6 +12,7 @@ services:
       - DEVELOPMENT=false
       - LOG_LEVEL=INFO
       - ORACLE_DIR=/opt/oracle/instantclient_21_17
+      - AUTO_REPROCESS=false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]

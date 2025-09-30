@@ -5,6 +5,7 @@ Serviço de monitoramento automático da tabela de guias
 
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
@@ -27,6 +28,7 @@ class MonitorService:
         self.logger = logging.getLogger(__name__)
         self._running = False
         self._task = None
+        self.auto_reprocess = os.getenv("AUTO_REPROCESS", "true").lower() == "true"
 
     async def start_monitoring(self):
         """Inicia o monitoramento automático"""
@@ -93,12 +95,23 @@ class MonitorService:
 
             try:
                 # Buscar guias aguardando processamento
-                guias_pendentes = (
-                    session.query(Guia)
-                    .filter(Guia.tp_status == "A")  # Aguardando
-                    .limit(10)
-                    .all()
-                )  # Processar até 10 por vez
+                if self.auto_reprocess:
+                    # Buscar todas as guias aguardando (comportamento atual)
+                    guias_pendentes = (
+                        session.query(Guia)
+                        .filter(Guia.tp_status == "A")  # Aguardando
+                        .limit(10)
+                        .all()
+                    )
+                else:
+                    # Buscar apenas guias que nunca foram tentadas
+                    guias_pendentes = (
+                        session.query(Guia)
+                        .filter(Guia.tp_status == "A")  # Aguardando
+                        .filter(Guia.tentativas == 0)  # Só primeira tentativa
+                        .limit(10)
+                        .all()
+                    )
 
                 if not guias_pendentes:
                     self.logger.debug("📋 Nenhuma guia pendente encontrada")
@@ -125,7 +138,12 @@ class MonitorService:
             # Marcar todas as guias como processando
             for guia in guias:
                 guia.tp_status = "P"
-                guia.tentativas += 1
+                if self.auto_reprocess:
+                    guia.tentativas += 1
+                else:
+                    # Sem incremento de tentativas quando reprocessamento está desabilitado
+                    if guia.tentativas == 0:
+                        guia.tentativas = 1
                 guia.data_processamento = datetime.utcnow()
 
             session.commit()
@@ -162,7 +180,12 @@ class MonitorService:
             for guia in guias:
                 guia.tp_status = "E"
                 guia.mensagem_erro = f"Erro crítico: {str(e)}"
-                guia.tentativas += 1
+                if self.auto_reprocess:
+                    guia.tentativas += 1
+                else:
+                    # Sem incremento de tentativas quando reprocessamento está desabilitado
+                    if guia.tentativas == 0:
+                        guia.tentativas = 1
                 guia.data_processamento = datetime.utcnow()
 
             session.commit()
@@ -176,7 +199,12 @@ class MonitorService:
 
             # Marcar como processando
             guia.tp_status = "P"
-            guia.tentativas += 1
+            if self.auto_reprocess:
+                guia.tentativas += 1
+            else:
+                # Sem incremento de tentativas quando reprocessamento está desabilitado
+                if guia.tentativas == 0:
+                    guia.tentativas = 1
             guia.data_processamento = datetime.utcnow()
             session.commit()
 
@@ -205,7 +233,12 @@ class MonitorService:
             # Erro crítico
             guia.tp_status = "E"
             guia.mensagem_erro = f"Erro crítico: {str(e)}"
-            guia.tentativas += 1
+            if self.auto_reprocess:
+                guia.tentativas += 1
+            else:
+                # Sem incremento de tentativas quando reprocessamento está desabilitado
+                if guia.tentativas == 0:
+                    guia.tentativas = 1
             guia.data_processamento = datetime.utcnow()
             session.commit()
             raise
@@ -225,6 +258,7 @@ class MonitorService:
                 "monitoramento_ativo": self._running,
                 "intervalo_minutos": self.settings.MONITOR_INTERVAL_MINUTES,
                 "auto_monitor_enabled": self.settings.AUTO_MONITOR_ENABLED,
+                "auto_reprocess_enabled": self.auto_reprocess,
                 "total_guias": total_guias,
                 "aguardando": aguardando,
                 "processando": processando,
