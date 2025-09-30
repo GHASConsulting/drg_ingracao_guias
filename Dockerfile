@@ -11,7 +11,11 @@ RUN apt-get update && apt-get install -y \
     unzip \
     libaio1t64 \
     libaio-dev \
+    libc6 \
     && rm -rf /var/lib/apt/lists/*
+
+# Criar link simbólico para libaio.so.1
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libaio.so.1t64 /usr/lib/x86_64-linux-gnu/libaio.so.1
 
 # Criar diretório para o Oracle Instant Client
 RUN mkdir -p /opt/oracle
