@@ -49,6 +49,10 @@ class Guia(Base):
     # Dados do hospital
     codigo_contratado = Column(String(14), nullable=False)
     nome_hospital = Column(String(70), nullable=False)
+    porte_hospital = Column(String(1), default="2")  # 1-4
+    complexidade_hospital = Column(String(1), default="1")  # 1-3
+    esfera_administrativa = Column(String(1), default="2")  # 1-3
+    endereco_hospital = Column(Text, default="Endereço não informado")
     data_sugerida_internacao = Column(Date, nullable=False)
     carater_atendimento = Column(String(1), nullable=False)  # 1-5
     tipo_internacao = Column(String(1), nullable=False)  # 1-5

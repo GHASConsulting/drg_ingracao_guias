@@ -48,6 +48,10 @@ class GuiaService:
                         # Dados do hospital
                         "codigoContratado": guia.codigo_contratado,
                         "nomeHospital": guia.nome_hospital,
+                        "porteHospital": guia.porte_hospital,
+                        "complexidadeHospital": guia.complexidade_hospital,
+                        "esferaAdministrativa": guia.esfera_administrativa,
+                        "enderecoHospital": guia.endereco_hospital,
                         "dataSugeridaInternacao": self._format_date(
                             guia.data_sugerida_internacao
                         ),

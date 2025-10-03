@@ -56,6 +56,15 @@ class Settings(BaseSettings):
     AUTO_MONITOR_ENABLED: bool = True
     MONITOR_INTERVAL_MINUTES: int = 5
 
+    # Configurações padrão do hospital (valores do .env)
+    HOSPITAL_CODIGO_CONTRATADO: str = "5499"
+    HOSPITAL_NOME: str = "HOSPITAL I9MED"
+    HOSPITAL_CNES: str = "9632587"
+    HOSPITAL_PORTE: str = "2"
+    HOSPITAL_COMPLEXIDADE: str = "1"
+    HOSPITAL_ESFERA_ADMINISTRATIVA: str = "2"
+    HOSPITAL_ENDERECO: str = "Endereço não informado"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
