@@ -35,8 +35,8 @@ def init_db():
             echo=settings.DEVELOPMENT,
         )
     elif settings.DATABASE_TYPE == "oracle":
-        # Construir URL Oracle
-        oracle_url = f"oracle+cx_oracle://{settings.ORACLE_USERNAME}:{settings.ORACLE_PASSWORD}@{settings.ORACLE_HOST}:{settings.ORACLE_PORT}/{settings.ORACLE_SID}"
+        # Construir URL Oracle (usando SID, não SERVICE_NAME)
+        oracle_url = f"oracle+cx_oracle://{settings.ORACLE_USERNAME}:{settings.ORACLE_PASSWORD}@{settings.ORACLE_HOST}:{settings.ORACLE_PORT}/?service_name={settings.ORACLE_SID}"
         engine = create_engine(oracle_url, echo=settings.DEVELOPMENT)
     else:
         engine = create_engine(settings.DATABASE_URL, echo=settings.DEVELOPMENT)

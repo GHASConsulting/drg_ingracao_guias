@@ -16,7 +16,7 @@ def enviar_json():
             "guia": [
                 {
                     "codigoOperadora": "3945",
-                    "numeroGuia": "R679541",
+                    "numeroGuia": "R679542",
                     "numeroGuiaOperadora": "UI856321",
                     "numeroGuiaInternacao": "",
                     "dataAutorizacao": "2025-08-02",
@@ -28,6 +28,7 @@ def enviar_json():
                     "dataNascimento": "1955-05-04 00:00",
                     "sexo": "M",
                     "situacaoBeneficiario": "A",
+                    "nomeBeneficiario": "JOÃO DA SILVA SANTOS",
                     "codigoPrestador": "7050611659800A",
                     "nomePrestador": "GABRIELA MARTINS",
                     "nomeProfissional": "ANGELICA MIRANDA",
@@ -59,8 +60,8 @@ def enviar_json():
                     "dataSolicitacao": "2025-07-30",
                     "justificativaOperadora": "Uma guia de internação é um documento essencial no sistema de saúde, utilizado para solicitar, autorizar ou negar a internação de um paciente em um hospital ou clínica. É um formulário padrão, muitas vezes parte do processo de autorização de procedimentos médicos, que contém informações sobre o paciente e o motivo da internação222.",
                     "naturezaGuia": "2",
-                    "guiaComplementar": "N",
-                    "situacaoGuia": "N",
+                    "guiaComplementar": "A",
+                    "situacaoGuia": "P",
                     "tipoDoenca": "2",
                     "tempoDoenca": "8",
                     "longaPermanencia": "1",
