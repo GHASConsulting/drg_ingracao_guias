@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from datetime import datetime, date
 from typing import List, Optional, Union
 from decimal import Decimal
@@ -49,73 +49,141 @@ class GuiaSchema(BaseModel):
     """Schema para validação de guias de internação."""
 
     # Campos principais
-    codigo_operadora: str = Field(..., min_length=1, max_length=6)
-    numero_guia: str = Field(..., min_length=1, max_length=20)
-    numero_guia_operadora: Optional[str] = Field(None, max_length=20)
-    numero_guia_internacao: Optional[str] = Field(None, max_length=20)
-    data_autorizacao: date
+    codigo_operadora: str = Field(
+        ..., min_length=1, max_length=6, alias="codigoOperadora"
+    )
+    numero_guia: str = Field(..., min_length=1, max_length=20, alias="numeroGuia")
+    numero_guia_operadora: Optional[str] = Field(
+        None, max_length=20, alias="numeroGuiaOperadora"
+    )
+    numero_guia_internacao: Optional[str] = Field(
+        None, max_length=20, alias="numeroGuiaInternacao"
+    )
+    data_autorizacao: date = Field(alias="dataAutorizacao")
     senha: Optional[str] = Field(None, max_length=20)
-    data_validade: Optional[date] = None
+    data_validade: Optional[date] = Field(None, alias="dataValidade")
 
     # Dados do beneficiário
-    numero_carteira: str = Field(..., min_length=1, max_length=20)
-    data_validade_carteira: Optional[date] = None
+    numero_carteira: str = Field(
+        ..., min_length=1, max_length=20, alias="numeroCarteira"
+    )
+    data_validade_carteira: Optional[date] = Field(None, alias="dataValidadeCarteira")
     rn: Optional[str] = Field(None, pattern=r"^[SN]$")
-    data_nascimento: date
+    data_nascimento: date = Field(alias="dataNascimento")
     sexo: str = Field(..., pattern=r"^[MFI]$")
-    situacao_beneficiario: str = Field(..., pattern=r"^[AI]$")
-    nome_beneficiario: str = Field(..., min_length=1, max_length=100)
+    situacao_beneficiario: str = Field(
+        ..., pattern=r"^[AI]$", alias="situacaoBeneficiario"
+    )
+    nome_beneficiario: str = Field(
+        ..., min_length=1, max_length=100, alias="nomeBeneficiario"
+    )
 
     # Dados do prestador
-    codigo_prestador: str = Field(..., min_length=1, max_length=14)
-    nome_prestador: str = Field(..., min_length=1, max_length=70)
-    nome_profissional: Optional[str] = Field(None, max_length=70)
-    codigo_profissional: str = Field(..., min_length=1, max_length=2)
-    numero_registro_profissional: str = Field(..., min_length=1, max_length=15)
-    uf_profissional: str = Field(..., min_length=2, max_length=2)
-    codigo_cbo: str = Field(..., min_length=4, max_length=6)
+    codigo_prestador: str = Field(
+        ..., min_length=1, max_length=14, alias="codigoPrestador"
+    )
+    nome_prestador: str = Field(..., min_length=1, max_length=70, alias="nomePrestador")
+    nome_profissional: Optional[str] = Field(
+        None, max_length=70, alias="nomeProfissional"
+    )
+    codigo_profissional: str = Field(
+        ..., min_length=1, max_length=2, alias="codigoProfissional"
+    )
+    numero_registro_profissional: str = Field(
+        ..., min_length=1, max_length=15, alias="numeroRegistroProfissional"
+    )
+    uf_profissional: str = Field(
+        ..., min_length=2, max_length=2, alias="ufProfissional"
+    )
+    codigo_cbo: str = Field(..., min_length=4, max_length=6, alias="codigoCbo")
 
     # Dados do hospital
-    codigo_contratado: str = Field(..., min_length=1, max_length=14)
-    nome_hospital: str = Field(..., min_length=1, max_length=70)
-    data_sugerida_internacao: date
-    carater_atendimento: str = Field(..., pattern=r"^[1-5]$")
-    tipo_internacao: str = Field(..., pattern=r"^[1-5]$")
-    regime_internacao: str = Field(..., pattern=r"^[1-5]$")
-    diarias_solicitadas: int = Field(..., ge=1, le=365)
-    previsao_uso_opme: Optional[str] = Field(None, pattern=r"^[SN]$")
-    previsao_uso_quimioterapico: Optional[str] = Field(None, pattern=r"^[SN]$")
-    indicacao_clinica: str = Field(..., min_length=1, max_length=1000)
-    indicacao_acidente: str = Field(..., pattern=r"^[0-2]$")
-    tipo_acomodacao_solicitada: Optional[str] = Field(None, pattern=r"^[1-2]$")
+    codigo_contratado: str = Field(
+        ..., min_length=1, max_length=14, alias="codigoContratado"
+    )
+    nome_hospital: str = Field(..., min_length=1, max_length=70, alias="nomeHospital")
+    data_sugerida_internacao: date = Field(alias="dataSugeridaInternacao")
+    carater_atendimento: str = Field(
+        ..., pattern=r"^[1-5]$", alias="caraterAtendimento"
+    )
+    tipo_internacao: str = Field(..., pattern=r"^[1-5]$", alias="tipoInternacao")
+    regime_internacao: str = Field(..., pattern=r"^[1-5]$", alias="regimeInternacao")
+    diarias_solicitadas: int = Field(..., ge=1, le=365, alias="diariasSolicitadas")
+    previsao_uso_opme: Optional[str] = Field(
+        None, pattern=r"^[SN]$", alias="previsaoUsoOpme"
+    )
+    previsao_uso_quimioterapico: Optional[str] = Field(
+        None, pattern=r"^[SN]$", alias="previsaoUsoQuimioterapico"
+    )
+    indicacao_clinica: str = Field(
+        ..., min_length=1, max_length=1000, alias="indicacaoClinica"
+    )
+    indicacao_acidente: str = Field(..., pattern=r"^[0-2]$", alias="indicacaoAcidente")
+    tipo_acomodacao_solicitada: Optional[str] = Field(
+        None, pattern=r"^[1-2]$", alias="tipoAcomodacaoSolicitada"
+    )
 
     # Dados da autorização
-    data_admissao_estimada: Optional[date] = None
-    qtde_diarias_autorizadas: Optional[int] = Field(None, ge=1, le=365)
-    tipo_acomodacao_autorizada: Optional[str] = Field(None, pattern=r"^[1-2]$")
-    cnes_autorizado: Optional[str] = Field(None, max_length=7)
-    observacao_guia: Optional[str] = Field(None, max_length=1000)
-    data_solicitacao: date
-    justificativa_operadora: Optional[str] = Field(None, max_length=1000)
+    data_admissao_estimada: Optional[date] = Field(None, alias="dataAdmissaoEstimada")
+    qtde_diarias_autorizadas: Optional[int] = Field(
+        None, ge=1, le=365, alias="qtdeDiariasAutorizadas"
+    )
+    tipo_acomodacao_autorizada: Optional[str] = Field(
+        None, pattern=r"^[1-2]$", alias="tipoAcomodacaoAutorizada"
+    )
+    cnes_autorizado: Optional[str] = Field(None, max_length=7, alias="cnesAutorizado")
+    observacao_guia: Optional[str] = Field(
+        None, max_length=1000, alias="observacaoGuia"
+    )
+    data_solicitacao: date = Field(alias="dataSolicitacao")
+    justificativa_operadora: Optional[str] = Field(
+        None, max_length=1000, alias="justificativaOperadora"
+    )
 
     # Dados complementares
-    natureza_guia: str = Field(..., pattern=r"^[1-6]$")
-    guia_complementar: str = Field(..., pattern=r"^[SN]$")
-    situacao_guia: str = Field(..., pattern=r"^[APNCS]$")
-    tipo_doenca: Optional[str] = Field(None, pattern=r"^[1-2]$")
-    tempo_doenca: Optional[int] = Field(None, ge=1, le=999)
-    longa_permanencia: Optional[str] = Field(None, pattern=r"^[1-2]$")
-    motivo_encerramento: Optional[str] = Field(None, pattern=r"^[1-5]$|^9$")
-    tipo_alta: Optional[str] = Field(None, pattern=r"^[1-8]$")
-    data_alta: Optional[date] = None
+    natureza_guia: str = Field(..., pattern=r"^[1-6]$", alias="naturezaGuia")
+    guia_complementar: str = Field(..., pattern=r"^[SN]$", alias="guiaComplementar")
+    situacao_guia: str = Field(..., pattern=r"^[APNCS]$", alias="situacaoGuia")
+    tipo_doenca: Optional[str] = Field(None, pattern=r"^[1-2]$", alias="tipoDoenca")
+    tempo_doenca: Optional[int] = Field(None, ge=1, le=999, alias="tempoDoenca")
+    longa_permanencia: Optional[str] = Field(
+        None, pattern=r"^[1-2]$", alias="longaPermanencia"
+    )
+    motivo_encerramento: Optional[str] = Field(
+        None, pattern=r"^[1-5]$|^9$", alias="motivoEncerramento"
+    )
+    tipo_alta: Optional[str] = Field(None, pattern=r"^[1-8]$", alias="tipoAlta")
+    data_alta: Optional[date] = Field(None, alias="dataAlta")
 
     # Relacionamentos
     anexo: Optional[List[AnexoSchema]] = None
     procedimento: Optional[List[ProcedimentoSchema]] = None
     diagnostico: Optional[List[DiagnosticoSchema]] = None
 
+    # Campos extras do JSON
+    porte_hospital: Optional[str] = Field(None, alias="porteHospital")
+    complexidade_hospital: Optional[str] = Field(None, alias="complexidadeHospital")
+    esfera_administrativa: Optional[str] = Field(None, alias="esferaAdministrativa")
+    endereco_hospital: Optional[str] = Field(None, alias="enderecoHospital")
+
+    @model_validator(mode="after")
+    def validate_numero_guia_internacao_obrigatorio(self):
+        """Valida se numero_guia_internacao é obrigatório quando guia_complementar = 'S'."""
+        # Se guia_complementar = 'S', numero_guia_internacao deve ser preenchido
+        if self.guia_complementar == "S":
+            if (
+                not self.numero_guia_internacao
+                or self.numero_guia_internacao.strip() == ""
+            ):
+                raise ValueError(
+                    "O campo 'numero_guia_internacao' é obrigatório quando 'guia_complementar' = 'S'"
+                )
+
+        return self
+
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class LoteGuiasSchema(BaseModel):

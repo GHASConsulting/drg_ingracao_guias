@@ -44,7 +44,7 @@ def init_db():
     # Criar session factory
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # Criar tabelas se não existirem
+    # Criar tabelas se não existirem (SQLAlchemy verifica se já existem)
     Base.metadata.create_all(bind=engine)
 
     logger.info(f"Banco de dados inicializado: {settings.DATABASE_TYPE}")
