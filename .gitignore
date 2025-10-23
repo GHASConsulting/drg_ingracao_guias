@@ -97,3 +97,16 @@ migrations/versions/*.py
 # Local configuration
 config_local.py
 local_settings.py
+
+# Test and example files
+teste_*.py
+testar_*.py
+exemplo_*.py
+mock_*.py
+iniciar_*.py
+*_test.py
+*_mock.py
+*_example.py
+
+# Documentation files
+IMPLEMENTACAO_COMPLETA.md
