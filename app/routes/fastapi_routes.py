@@ -26,9 +26,19 @@ from app.schemas.response_schema import (
     SystemStatusResponseSchema,
     ListaGuiasResponseSchema,
 )
+from app.schemas.consulta_externa_schema import (
+    ConsultaExternaRequestSchema,
+    ConsultaExternaResponseSchema,
+    ConsultaMultiplaRequestSchema,
+    ConsultaMultiplaResponseSchema,
+    StatusConsultaSchema,
+)
 from app.services.drg_service import DRGService
 from app.services.guia_service import GuiaService
 from app.services.monitor_service import monitor_service
+from app.services.consulta_externa_service import ConsultaExternaService
+from app.services.monitor_campos_service import MonitorCamposService
+from app.config.config import get_settings
 
 # Configurar logging
 logger = logging.getLogger(__name__)
@@ -41,7 +51,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("/health", response_model=dict)
-@limiter.limit("100/minute")
+@limiter.limit(f"{get_settings().RATE_LIMIT_DEFAULT_MINUTES * 20}/minute")
 async def health_check(request: Request):
     """Verifica saúde da API."""
     try:
@@ -64,7 +74,7 @@ async def health_check(request: Request):
 
 
 @router.get("/status", response_model=dict)
-@limiter.limit("30/minute")
+@limiter.limit(f"{get_settings().RATE_LIMIT_DEFAULT_MINUTES * 6}/minute")
 async def system_status(request: Request, db: Session = Depends(get_db)):
     """Retorna status do sistema."""
     try:
@@ -112,7 +122,7 @@ async def system_status(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/guias", response_model=List[GuiaResponseSchema])
-@limiter.limit("60/minute")
+@limiter.limit(f"{get_settings().RATE_LIMIT_DEFAULT_MINUTES * 12}/minute")
 async def listar_guias(
     request: Request,
     status: Optional[str] = Query(None, description="Filtrar por status"),
@@ -469,3 +479,419 @@ async def stop_monitoring():
 
 
 # Error handlers serão configurados no main.py
+
+
+# =============================================================================
+# ROTAS DE CONSULTA EXTERNA DE GUIAS
+# =============================================================================
+
+
+@router.post("/guias/consulta-externa", response_model=ConsultaExternaResponseSchema)
+@limiter.limit(f"{get_settings().RATE_LIMIT_CONSULTA_EXTERNA_MINUTES}/minute")
+async def consultar_guia_externa(
+    request: Request,
+    consulta_request: ConsultaExternaRequestSchema,
+    db: Session = Depends(get_db),
+):
+    """
+    Consulta uma guia em uma rota externa.
+
+    Esta rota permite consultar o status de uma guia em uma API externa,
+    verificando se foi aprovada ou retornada. Os dados são armazenados
+    no banco para controle de status.
+    """
+    try:
+        consulta_service = ConsultaExternaService()
+
+        resultado = await consulta_service.consultar_guia_externa(
+            db=db,
+            numero_guia=consulta_request.numero_guia,
+            data_ultima_atualizacao=consulta_request.data_ultima_atualizacao,
+        )
+
+        return ConsultaExternaResponseSchema(
+            sucesso=resultado["sucesso"],
+            mensagem=resultado.get("mensagem"),
+            dados=resultado.get("dados"),
+            status_consulta=resultado.get("status_consulta", "P"),
+            numero_guia=consulta_request.numero_guia,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Erro na consulta externa da guia {consulta_request.numero_guia}: {e}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "numero_guia": consulta_request.numero_guia,
+            },
+        )
+
+
+@router.post(
+    "/guias/consulta-externa/multipla", response_model=ConsultaMultiplaResponseSchema
+)
+@limiter.limit(f"{get_settings().RATE_LIMIT_CONSULTA_MULTIPLA_MINUTES}/minute")
+async def consultar_multiplas_guias_externas(
+    request: Request,
+    consulta_request: ConsultaMultiplaRequestSchema,
+    db: Session = Depends(get_db),
+):
+    """
+    Consulta múltiplas guias em uma rota externa.
+
+    Esta rota permite consultar o status de várias guias em lote,
+    útil para processar grandes volumes de consultas.
+    """
+    try:
+        consulta_service = ConsultaExternaService()
+
+        resultado = await consulta_service.consultar_multiplas_guias(
+            db=db,
+            guias=consulta_request.guias,
+        )
+
+        return ConsultaMultiplaResponseSchema(
+            sucesso=resultado["sucesso"],
+            total_processadas=resultado["total_processadas"],
+            sucessos=resultado["sucessos"],
+            erros=resultado["erros"],
+            resultados=resultado["resultados"],
+        )
+
+    except Exception as e:
+        logger.error(f"Erro na consulta múltipla externa: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "total_processadas": 0,
+                "sucessos": 0,
+                "erros": len(consulta_request.guias),
+            },
+        )
+
+
+@router.get("/guias/{numero_guia}/status-consulta", response_model=StatusConsultaSchema)
+async def obter_status_consulta(
+    numero_guia: str = Path(..., description="Número da guia"),
+    db: Session = Depends(get_db),
+):
+    """
+    Obtém o status de consulta externa de uma guia específica.
+
+    Retorna informações sobre quando foi feita a última consulta,
+    qual URL foi consultada e os dados retornados.
+    """
+    try:
+        guia = db.query(Guia).filter(Guia.numero_guia == numero_guia).first()
+
+        if not guia:
+            raise HTTPException(
+                status_code=404, detail=f"Guia {numero_guia} não encontrada"
+            )
+
+        # Parse dos dados retornados se existirem
+        dados_retornados = None
+        if guia.dados_retornados:
+            try:
+                import json
+
+                dados_retornados = json.loads(guia.dados_retornados)
+            except json.JSONDecodeError:
+                dados_retornados = None
+
+        return StatusConsultaSchema(
+            numero_guia=guia.numero_guia,
+            status_consulta=guia.status_consulta,
+            data_ultima_consulta=guia.data_ultima_consulta,
+            dados_retornados=dados_retornados,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao obter status de consulta da guia {numero_guia}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/guias/consulta-externa/status", response_model=dict)
+async def obter_estatisticas_consulta_externa(db: Session = Depends(get_db)):
+    """
+    Obtém estatísticas das consultas externas realizadas.
+
+    Retorna contadores de guias por status de consulta e outras
+    informações úteis para monitoramento.
+    """
+    try:
+        # Contar guias por status de consulta
+        total_guias = db.query(Guia).count()
+        pendentes = db.query(Guia).filter(Guia.status_consulta == "P").count()
+        consultadas = db.query(Guia).filter(Guia.status_consulta == "C").count()
+        retornadas = db.query(Guia).filter(Guia.status_consulta == "R").count()
+
+        # Guias com consulta recente (últimas 24h)
+        from datetime import datetime, timedelta
+
+        ontem = datetime.utcnow() - timedelta(days=1)
+        consultas_recentes = (
+            db.query(Guia).filter(Guia.data_ultima_consulta >= ontem).count()
+        )
+
+        # URLs mais utilizadas (removido - agora é configuração global)
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "estatisticas": {
+                "total_guias": total_guias,
+                "pendentes": pendentes,
+                "consultadas": consultadas,
+                "retornadas": retornadas,
+                "consultas_recentes_24h": consultas_recentes,
+            },
+            "configuracoes": {
+                "timeout_ms": get_settings().CONSULTA_EXTERNA_TIMEOUT_MS,
+                "intervalo_ms": get_settings().CONSULTA_EXTERNA_INTERVALO_MS,
+                "max_tentativas": get_settings().CONSULTA_EXTERNA_MAX_TENTATIVAS,
+                "url_consulta_externa": get_settings().CONSULTA_EXTERNA_URL,
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas de consulta externa: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# ROTAS DE MONITORAMENTO DE CAMPOS
+# =============================================================================
+
+
+@router.post("/monitor-campos/executar", response_model=dict)
+@limiter.limit(f"{get_settings().RATE_LIMIT_MONITOR_MINUTES}/minute")
+async def executar_monitoramento_campos(
+    request: Request, db: Session = Depends(get_db)
+):
+    """
+    Executa monitoramento de campos de guias manualmente.
+
+    Esta rota permite executar o monitoramento de campos de forma manual,
+    verificando mudanças nas guias que estão sendo monitoradas.
+    """
+    try:
+        monitor_service = MonitorCamposService()
+        resultado = await monitor_service.monitorar_guias()
+
+        return {
+            "sucesso": resultado["sucesso"],
+            "mensagem": "Monitoramento executado com sucesso",
+            "dados": resultado,
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao executar monitoramento de campos: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"sucesso": False, "erro": f"Erro interno: {str(e)}"},
+        )
+
+
+@router.get("/monitor-campos/estatisticas", response_model=dict)
+async def obter_estatisticas_monitoramento_campos(db: Session = Depends(get_db)):
+    """
+    Obtém estatísticas do monitoramento de campos.
+
+    Retorna informações sobre guias em monitoramento, finalizadas
+    e outras métricas úteis para acompanhamento.
+    """
+    try:
+        monitor_service = MonitorCamposService()
+        estatisticas = monitor_service.obter_estatisticas_monitoramento()
+
+        return estatisticas
+
+    except Exception as e:
+        logger.error(f"Erro ao obter estatísticas de monitoramento: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/monitor-campos/guias/{status}", response_model=dict)
+async def obter_guias_por_status_monitoramento(
+    status: str = Path(..., description="Status de monitoramento (N/M/F)"),
+    db: Session = Depends(get_db),
+):
+    """
+    Obtém guias por status de monitoramento.
+
+    Retorna lista de guias filtradas por status de monitoramento:
+    - N: Não monitorando
+    - M: Monitorando
+    - F: Finalizado
+    """
+    try:
+        if status not in ["N", "M", "F"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Status deve ser N (Não monitorando), M (Monitorando) ou F (Finalizado)",
+            )
+
+        guias = db.query(Guia).filter(Guia.status_monitoramento == status).all()
+
+        return {
+            "status_monitoramento": status,
+            "total_guias": len(guias),
+            "guias": [
+                {
+                    "numero_guia": guia.numero_guia,
+                    "situacao_guia": guia.situacao_guia,
+                    "tp_status": guia.tp_status,
+                    "data_atualizacao": (
+                        guia.data_atualizacao.isoformat()
+                        if guia.data_atualizacao
+                        else None
+                    ),
+                    "data_ultima_consulta": (
+                        guia.data_ultima_consulta.isoformat()
+                        if guia.data_ultima_consulta
+                        else None
+                    ),
+                    "tentativas": guia.tentativas,
+                }
+                for guia in guias
+            ],
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro ao obter guias por status de monitoramento: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/monitor-campos/start", response_model=dict)
+async def iniciar_monitoramento_campos():
+    """
+    Inicia o monitoramento automático de campos de guias.
+    """
+    try:
+        from app.services.monitor_campos_service import monitor_campos_service
+
+        # Verificar se já está rodando
+        if (
+            hasattr(monitor_campos_service, "_running")
+            and monitor_campos_service._running
+        ):
+            return {
+                "sucesso": False,
+                "mensagem": "Monitoramento de campos já está em execução",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Iniciar monitoramento contínuo em background
+        import asyncio
+
+        monitor_campos_service._running = True
+        monitor_campos_service._task = asyncio.create_task(
+            monitor_campos_service.iniciar_monitoramento_continuo()
+        )
+
+        return {
+            "sucesso": True,
+            "mensagem": "Monitoramento de campos iniciado com sucesso",
+            "configuracoes": {
+                "intervalo_minutos": monitor_campos_service.intervalo_monitoramento,
+                "campos_criticos": monitor_campos_service.campos_criticos,
+                "status_final": monitor_campos_service.status_final,
+            },
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao iniciar monitoramento de campos: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
+
+
+@router.post("/monitor-campos/stop", response_model=dict)
+async def parar_monitoramento_campos():
+    """
+    Para o monitoramento automático de campos de guias.
+    """
+    try:
+        from app.services.monitor_campos_service import monitor_campos_service
+
+        # Verificar se está rodando
+        if (
+            not hasattr(monitor_campos_service, "_running")
+            or not monitor_campos_service._running
+        ):
+            return {
+                "sucesso": False,
+                "mensagem": "Monitoramento de campos não está em execução",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Parar monitoramento
+        monitor_campos_service._running = False
+        if hasattr(monitor_campos_service, "_task") and monitor_campos_service._task:
+            monitor_campos_service._task.cancel()
+            try:
+                await monitor_campos_service._task
+            except asyncio.CancelledError:
+                pass
+
+        return {
+            "sucesso": True,
+            "mensagem": "Monitoramento de campos parado com sucesso",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao parar monitoramento de campos: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
+
+
+@router.get("/monitor-campos/status", response_model=dict)
+async def obter_status_monitoramento_campos():
+    """
+    Obtém o status do monitoramento de campos de guias.
+    """
+    try:
+        from app.services.monitor_campos_service import monitor_campos_service
+
+        # Verificar se está rodando
+        running = (
+            hasattr(monitor_campos_service, "_running")
+            and monitor_campos_service._running
+        )
+
+        return {
+            "monitoramento_ativo": running,
+            "configuracoes": {
+                "intervalo_minutos": monitor_campos_service.intervalo_monitoramento,
+                "campos_criticos": monitor_campos_service.campos_criticos,
+                "status_final": monitor_campos_service.status_final,
+            },
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter status do monitoramento de campos: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

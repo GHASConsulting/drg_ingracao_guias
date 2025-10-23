@@ -56,6 +56,27 @@ class Settings(BaseSettings):
     AUTO_MONITOR_ENABLED: bool = True
     MONITOR_INTERVAL_MINUTES: int = 5
 
+    # Configurações para consulta externa de guias
+    CONSULTA_EXTERNA_TIMEOUT_MS: int = 30000  # 30 segundos em milissegundos
+    CONSULTA_EXTERNA_MAX_TENTATIVAS: int = 3
+    CONSULTA_EXTERNA_INTERVALO_MS: int = 60000  # 1 minuto entre tentativas
+    CONSULTA_EXTERNA_URL: str = (
+        "https://api.externa.com/consultar-guia"  # URL padrão da consulta externa
+    )
+
+    # Configurações para monitoramento de campos
+    MONITOR_CAMPOS_ENABLED: bool = True
+    MONITOR_CAMPOS_INTERVALO_MINUTES: int = 10  # Intervalo entre verificações
+    MONITOR_CAMPOS_TIMEOUT_MINUTES: int = (
+        30  # Tempo limite para considerar guia atualizada
+    )
+
+    # Configurações de rate limiting
+    RATE_LIMIT_MONITOR_MINUTES: int = 10
+    RATE_LIMIT_CONSULTA_EXTERNA_MINUTES: int = 30
+    RATE_LIMIT_CONSULTA_MULTIPLA_MINUTES: int = 10
+    RATE_LIMIT_DEFAULT_MINUTES: int = 5
+
     # Configurações padrão do hospital (valores do .env)
     HOSPITAL_CODIGO_CONTRATADO: str = "5499"
     HOSPITAL_NOME: str = "HOSPITAL I9MED"

@@ -69,6 +69,9 @@ class Guia(Base):
     qtde_diarias_autorizadas = Column(Integer)
     tipo_acomodacao_autorizada = Column(String(2))
     cnes_autorizado = Column(String(7))
+    senha_autorizacao = Column(
+        String(20)
+    )  # Senha de autorização retornada pela consulta externa
     observacao_guia = Column(Text)
     data_solicitacao = Column(Date, nullable=False)
     justificativa_operadora = Column(Text)
@@ -93,6 +96,16 @@ class Guia(Base):
     data_processamento = Column(DateTime)
     mensagem_erro = Column(Text)
     tentativas = Column(Integer, default=0)
+
+    # Novos campos para consulta externa
+    status_consulta = Column(
+        String(1), nullable=False, default="P"
+    )  # P= Pendente, C= Consultado, R= Retornado
+    data_ultima_consulta = Column(DateTime)
+    dados_retornados = Column(Text)  # JSON com dados retornados da consulta externa
+    status_monitoramento = Column(
+        String(1), nullable=False, default="N"
+    )  # N= Não monitorando, M= Monitorando, F= Finalizado
 
     # Relacionamentos
     anexos = relationship("Anexo", back_populates="guia", cascade="all, delete-orphan")

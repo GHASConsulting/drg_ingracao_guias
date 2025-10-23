@@ -22,7 +22,7 @@ SessionLocal = None
 
 def init_db():
     """Inicializa o banco de dados"""
-    global engine, SessionLocal
+    global engine, SessionLocal 
 
     settings = get_settings()
 

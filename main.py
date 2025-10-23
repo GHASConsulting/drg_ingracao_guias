@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
+import asyncio
 
 # Rate limiting
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -25,6 +26,7 @@ limiter = Limiter(key_func=get_remote_address)
 from app.config.config import get_settings
 from app.database.database import init_db
 from app.services.monitor_service import monitor_service
+from app.services.monitor_campos_service import monitor_campos_service
 from app.middleware.security import setup_security_middleware
 
 
@@ -40,6 +42,18 @@ async def lifespan(app: FastAPI):
     # Iniciar monitoramento automático
     await monitor_service.start_monitoring()
 
+    # Iniciar monitoramento de campos se habilitado
+    settings = get_settings()
+    if settings.MONITOR_CAMPOS_ENABLED:
+        logger.info("🚀 Iniciando monitoramento automático de campos...")
+        monitor_campos_service._running = True
+        monitor_campos_service._task = asyncio.create_task(
+            monitor_campos_service.iniciar_monitoramento_continuo()
+        )
+        logger.info("✅ Monitoramento de campos iniciado")
+    else:
+        logger.info("🔕 Monitoramento de campos desabilitado")
+
     logger.info("Aplicação FastAPI iniciada com sucesso!")
 
     yield
@@ -49,6 +63,18 @@ async def lifespan(app: FastAPI):
 
     # Parar monitoramento automático
     await monitor_service.stop_monitoring()
+
+    # Parar monitoramento de campos
+    if monitor_campos_service._running:
+        logger.info("🛑 Parando monitoramento de campos...")
+        monitor_campos_service._running = False
+        if monitor_campos_service._task:
+            monitor_campos_service._task.cancel()
+            try:
+                await monitor_campos_service._task
+            except asyncio.CancelledError:
+                pass
+        logger.info("✅ Monitoramento de campos parado")
 
 
 def create_app() -> FastAPI:
