@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     HOSPITAL_ESFERA_ADMINISTRATIVA: str = "2"
     HOSPITAL_ENDERECO: str = "Endereço não informado"
 
+    # Configurações específicas para PUT DRG
+    DRG_PUT_TIMEOUT_MS: int = 30000
+    DRG_PUT_MAX_TENTATIVAS: int = 3
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

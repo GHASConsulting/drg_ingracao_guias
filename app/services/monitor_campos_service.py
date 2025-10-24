@@ -175,6 +175,40 @@ class MonitorCamposService:
             # Detectar mudanças nos campos críticos
             campos_mudados = self._detectar_mudancas_campos(guia)
 
+            # Verificar se senha foi preenchida por trigger
+            if self._detectar_senha_preenchida(guia):
+                self.logger.info(
+                    f"🔍 Detectada guia aprovada com senha: {guia.numero_guia}"
+                )
+
+                # Enviar PUT específico para guia aprovada com senha
+                resultado_put = await self._enviar_put_guia_aprovada(db, guia)
+
+                if resultado_put["sucesso"]:
+                    # Finalizar monitoramento após PUT bem-sucedido
+                    guia.status_monitoramento = "F"
+                    guia.tp_status = "T"  # Transmitida
+                    db.commit()
+                    self.logger.info(
+                        f"✅ Guia completa enviada com sucesso para {guia.numero_guia}"
+                    )
+                    return {
+                        "mudanca_detectada": True,
+                        "put_enviado": True,
+                        "motivo": "Senha preenchida - Guia completa enviada",
+                        "tipo_put": "guia_aprovada",
+                    }
+                else:
+                    self.logger.error(
+                        f"❌ Falha ao enviar guia completa para {guia.numero_guia}: {resultado_put.get('erro')}"
+                    )
+                    return {
+                        "mudanca_detectada": True,
+                        "put_enviado": False,
+                        "motivo": f"Falha no envio: {resultado_put.get('erro')}",
+                        "tipo_put": "guia_aprovada",
+                    }
+
             if not campos_mudados:
                 return {
                     "mudanca_detectada": False,
@@ -199,7 +233,7 @@ class MonitorCamposService:
                     "motivo": "Monitoramento finalizado",
                 }
 
-            # Enviar PUT para DRG
+            # Enviar PUT para DRG (mudanças normais)
             resultado_put = await self._enviar_put_drg(db, guia, campos_mudados)
 
             return {
@@ -239,7 +273,21 @@ class MonitorCamposService:
             # Se foi atualizada após a última consulta, considerar que houve mudança
             campos_mudados = self.campos_criticos.copy()
 
+        # Detectar senha preenchida por trigger quando guia for aprovada
+        if self._detectar_senha_preenchida(guia):
+            campos_mudados.append("senha_autorizacao_preenchida")
+
         return campos_mudados
+
+    def _detectar_senha_preenchida(self, guia: Guia) -> bool:
+        """
+        Detecta se a senha_autorizacao foi preenchida por trigger.
+        """
+        return (
+            guia.situacao_guia == "A"
+            and guia.senha_autorizacao is not None
+            and guia.senha_autorizacao.strip() != ""
+        )
 
     def _deve_finalizar_monitoramento(self, guia: Guia) -> bool:
         """
@@ -297,6 +345,63 @@ class MonitorCamposService:
 
         except Exception as e:
             self.logger.error(f"❌ Erro ao enviar PUT para DRG: {e}")
+            return {"sucesso": False, "motivo": f"Erro interno: {str(e)}"}
+
+    async def _enviar_put_guia_aprovada(
+        self, db: Session, guia: Guia
+    ) -> Dict[str, Any]:
+        """
+        Envia PUT específico para guia aprovada com senha de autorização
+        """
+        try:
+            self.logger.info(
+                f"📡 Enviando guia aprovada completa para DRG - {guia.numero_guia}"
+            )
+
+            # Montar JSON completo da guia usando o método existente
+            json_completo = self.guia_service.montar_json_drg(guia)
+
+            # Adicionar tipo de operação para identificar que é guia aprovada
+            if "loteGuias" in json_completo and "guia" in json_completo["loteGuias"]:
+                for guia_item in json_completo["loteGuias"]["guia"]:
+                    guia_item["tipoOperacao"] = "PUT_APROVADA"
+                    # Garantir que a senha de autorização está incluída
+                    if guia.senha_autorizacao:
+                        guia_item["senhaAutorizacao"] = guia.senha_autorizacao
+
+            # Enviar JSON completo para DRG usando o método existente
+            resultado = self.drg_service.enviar_guia(json_completo)
+
+            if resultado["sucesso"]:
+                # Atualizar status da guia
+                guia.tp_status = "T"  # Transmitida
+                guia.tentativas += 1
+                guia.data_processamento = datetime.utcnow()
+                guia.mensagem_erro = None
+
+                db.commit()
+
+                self.logger.info(
+                    f"✅ Guia aprovada completa enviada com sucesso para {guia.numero_guia}"
+                )
+                return {
+                    "sucesso": True,
+                    "motivo": "Guia aprovada completa enviada com sucesso",
+                }
+            else:
+                # Marcar erro
+                guia.tp_status = "E"  # Erro
+                guia.mensagem_erro = resultado["erro"]
+
+                db.commit()
+
+                self.logger.error(
+                    f"❌ Erro ao enviar guia aprovada completa {guia.numero_guia}: {resultado['erro']}"
+                )
+                return {"sucesso": False, "motivo": f"Erro: {resultado['erro']}"}
+
+        except Exception as e:
+            self.logger.error(f"❌ Erro ao enviar guia aprovada completa: {e}")
             return {"sucesso": False, "motivo": f"Erro interno: {str(e)}"}
 
     def _montar_json_put(self, guia: Guia, campos_mudados: List[str]) -> Dict[str, Any]:
