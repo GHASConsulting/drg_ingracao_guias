@@ -3,6 +3,14 @@ echo =======================================================
 echo   INICIANDO DRG-GUIAS (DESENVOLVIMENTO)
 echo =======================================================
 
+:: Verifica se existe arquivo .env
+if not exist ".env" (
+    echo ⚠️  Arquivo .env nao encontrado!
+    echo Por favor, copie env.example para .env e configure
+    pause
+    exit /b 1
+)
+
 :: Ativa ambiente virtual
 if exist "venv\Scripts\activate" (
     call venv\Scripts\activate

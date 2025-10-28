@@ -87,8 +87,13 @@ dump.rdb
 *.bak
 *.backup
 
-# Documentation
-docs/
+# Documentation (except README files)
+docs/*.pdf
+docs/*.xlsx
+docs/*.csv
+docs/*.json
+docs/*.zip
+docs/Guias_*/
 
 # Migration files (keep structure, ignore specific migrations)
 migrations/versions/*.py
@@ -98,7 +103,7 @@ migrations/versions/*.py
 config_local.py
 local_settings.py
 
-# Test and example files
+# Test and example files (keep in tests/ folder, but ignore standalone test files in root)
 teste_*.py
 testar_*.py
 exemplo_*.py
@@ -108,5 +113,33 @@ iniciar_*.py
 *_mock.py
 *_example.py
 
+# SQL files (database dumps and migration scripts)
+*.sql
+!database/*.sql
+
+# Database files
+*.db
+drg_guias.db
+database/teste_drg.db
+
+# Logs
+logs/
+*.log
+
+# Scripts de envio/teste na raiz
+enviar_json.py
+json_atual_completo.py
+migrar_consulta_externa.py
+
 # Documentation files
 IMPLEMENTACAO_COMPLETA.md
+GUIA_COMPLEMENTAR.md
+
+# Compressed files in docs
+*.zip
+*.xlsx
+*.csv
+!requirements.txt
+
+# venv completo (já está na linha 25, mas garantindo)
+venv/

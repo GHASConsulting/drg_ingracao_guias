@@ -14,6 +14,12 @@ class GuiaService:
     def montar_json_drg(self, guia: Guia) -> Dict[str, Any]:
         """Monta o JSON no formato esperado pela API DRG."""
 
+        # Validação: se guiaComplementar = "S", numeroGuiaInternacao é obrigatório
+        if guia.guia_complementar == "S" and not guia.numero_guia_internacao:
+            raise ValueError(
+                "Campo numeroGuiaInternacao é obrigatório quando guiaComplementar = 'S'"
+            )
+
         # Estrutura base
         json_drg = {
             "loteGuias": {

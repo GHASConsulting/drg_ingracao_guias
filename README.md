@@ -2,272 +2,162 @@
 
 Sistema para processamento automático e envio de guias de internação para a API DRG Brasil usando FastAPI.
 
-## ✨ **Características Principais**
+## ✨ Características
 
 - 🚀 **FastAPI** - Framework moderno e rápido
 - 🗄️ **Multi-banco** - Oracle, PostgreSQL, SQLite
-- 🤖 **Monitoramento Automático** - Processa guias em lote (até 10 por vez)
-- 📊 **Logs Detalhados** - Rastreamento completo de operações
-- 🐳 **Docker Ready** - Deploy simplificado com Docker Compose
-- 📋 **API REST** - Endpoints completos para integração
-- 🔒 **Segurança** - Rate limiting e middleware de segurança
-- ⚡ **Processamento em Tempo Real** - Monitoramento automático configurável
+- 🤖 **Monitoramento Automático** - Processa guias em lote
+- 📊 **Logs Detalhados** - Rastreamento completo
+- 🐳 **Docker Ready** - Deploy simplificado
 
-## 📚 **Documentação**
+## 🚀 Instalação Rápida
 
-- 📄 **API Routes** - Rotas e endpoints da API
-- 🗄️ **Database Schema** - Estrutura das tabelas e procedures
-- 🧪 **Testes** - Como testar a API
-- 📊 **Monitoramento** - Logs e monitoramento automático
-- 🔒 **Segurança** - Configurações de segurança implementadas
+### Pré-requisitos
 
-## 🚀 **Instalação Rápida**
+- Python 3.11+ ou Docker
+- Oracle Instant Client (se usar Oracle)
+- Credenciais da API DRG
 
-### **🐳 Opção 1: Docker (Recomendado)**
+### 1. Clone e Configure
 
 ```bash
-# 1. Clone o repositório
+# Clone o repositório
 git clone https://github.com/GHASConsulting/drg_ingracao_guias.git
 cd drg_guias
 
-# 2. Configure o ambiente
-cp env.example .env
-# Edite o .env com suas configurações
-
-# 3. Execute com Docker
-docker compose --profile production up --build -d
-```
-
-**Acesse:** http://localhost:8000/docs
-
-### **🐍 Opção 2: Python Local**
-
-```bash
-# 1. Clone o repositório
-git clone <url-do-repositorio>
-cd drg_guias
-
-# 2. Configure ambiente Python
-python -m venv venv
-# Windows: venv\Scripts\activate
-# Linux/Mac: source venv/bin/activate
-
-# 3. Instale dependências
-pip install -r requirements.txt
-
-# 4. Configure variáveis
-cp env.example .env
-# Edite o .env conforme necessário
-
-# 5. Execute a aplicação
-python main.py
-```
-
-## ⚙️ **Configuração**
-
-### **📋 Arquivo .env**
-
-```bash
-# Copiar exemplo
+# Configure o ambiente
 cp env.example .env
 ```
 
-**Configurações essenciais:**
+### 2. Edite o arquivo `.env`
 
 ```env
-# Ambiente
+# AMBIENTE
 DEVELOPMENT=True          # True=dev, False=produção
-DATABASE_TYPE=sqlite      # sqlite, oracle, postgresql
 
-# Oracle (Produção)
-DATABASE_TYPE=oracle
-ORACLE_HOST=servidor_oracle
-ORACLE_PORT=1521
-ORACLE_SID=XE
-ORACLE_USERNAME=usuario
-ORACLE_PASSWORD=senha
-ORACLE_DIR=/opt/oracle/instantclient_21_17
+# DATABASE (Escolha um)
+DATABASE_TYPE=sqlite      # sqlite, oracle, postgresql
+DATABASE_URL=sqlite:///database/teste_drg.db
+
+# ORACLE (Produção)
+# DATABASE_TYPE=oracle
+# ORACLE_HOST=servidor
+# ORACLE_PORT=1521
+# ORACLE_SID=XE
+# ORACLE_USERNAME=usuario
+# ORACLE_PASSWORD=senha
+# ORACLE_DIR=C:\instantclient_21_13  # Windows
+# ORACLE_DIR=/opt/oracle/instantclient_21_17  # Linux
 
 # DRG API
 DRG_USERNAME=seu_usuario
 DRG_PASSWORD=sua_senha
 DRG_API_KEY=sua_chave
+AUTH_API_URL=https://api-autenticacao.iagsaude.com/login
+DRG_API_URL=https://api-hospitalar.iagsaude.com/integracao/guias/save
 
-# Monitoramento Automático
+# MONITORAMENTO
 AUTO_MONITOR_ENABLED=True
 MONITOR_INTERVAL_MINUTES=5
-
-# Segurança (Opcional)
-RATE_LIMIT_ENABLED=True
-MAX_REQUESTS_PER_MINUTE=100
 ```
 
-### **🗄️ Bancos Suportados**
-
-- **SQLite** - Desenvolvimento e testes
-- **Oracle** - Produção (com Instant Client)
-- **PostgreSQL** - Alternativa de produção
-- **Firebird** - Suporte completo
-
-## 🐳 **Docker**
-
-### **📋 Pré-requisitos**
+## 🐳 Executar com Docker
 
 ```bash
-# Verificar se Docker está instalado
-docker --version
-docker-compose --version
+# Construir e iniciar
+docker-compose --profile production up --build -d
 
-# Se não estiver instalado, instale o Docker Desktop:
-# https://www.docker.com/products/docker-desktop/
-```
+# Ver logs
+docker-compose logs -f drg-api
 
-### **🚀 Comandos Docker Completos**
-
-#### **1. Desenvolvimento (SQLite)**
-
-```bash
-# Parar containers existentes (se houver)
+# Parar
 docker-compose down
 
-# Construir e iniciar containers
-docker-compose up --build
-
-# Executar em background (detached)
-docker-compose up --build -d
-
-# Ver logs em tempo real
-docker-compose logs -f
-
-# Parar containers
-docker-compose down
+# Acesse: http://localhost:8000/docs
 ```
 
-#### **2. Produção (Oracle)**
+## 🐍 Executar Localmente
+
+### Windows
 
 ```bash
-# 1. Configurar .env para Oracle
+# Ativar ambiente virtual
+venv\Scripts\activate
+
+# Executar
+python main.py
+# ou
+start_drg_api_dev.bat
+```
+
+### Linux/Mac
+
+```bash
+# Ativar ambiente virtual
+source venv/bin/activate
+
+# Executar
+python main.py
+# ou
+chmod +x start_drg_api_prod.sh
+./start_drg_api_prod.sh
+```
+
+## ✅ Testar Conexão com Banco
+
+### SQLite
+
+```bash
+# O banco será criado automaticamente em database/teste_drg.db
+```
+
+### Oracle
+
+```bash
+# 1. Instale o Oracle Instant Client
+# Windows: C:\instantclient_21_13
+# Linux: /opt/oracle/instantclient_21_17
+
+# 2. Configure no .env
 DATABASE_TYPE=oracle
-ORACLE_HOST=servidor_oracle
+ORACLE_HOST=servidor
 ORACLE_PORT=1521
 ORACLE_SID=XE
 ORACLE_USERNAME=usuario
 ORACLE_PASSWORD=senha
-ORACLE_DIR=/opt/oracle/instantclient_21_17
 
-# 2. Construir e executar
-docker-compose up --build -d
-
-# 3. Verificar se está funcionando
-docker-compose ps
-docker-compose logs drg-api
+# 3. Teste a conexão
+python -c "import cx_Oracle; print('✅ Oracle OK')"
 ```
 
-#### **3. Com PostgreSQL (Recomendado para Produção)**
+### PostgreSQL
 
 ```bash
-# Usar profile production (inclui PostgreSQL)
-docker compose --profile production up --build -d
+# Configure no .env
+DATABASE_TYPE=postgresql
+DATABASE_URL=postgresql://usuario:senha@servidor:5432/database
 
-# Verificar containers
-docker compose --profile production ps
+# Teste a conexão
+python -c "import psycopg2; print('✅ PostgreSQL OK')"
+```
+
+## 📊 Verificar se Está Funcionando
+
+```bash
+# Health check
+curl http://localhost:8000/api/v1/health
+
+# Status do sistema
+curl http://localhost:8000/api/v1/status
+
+# Monitoramento
+curl http://localhost:8000/api/v1/monitoramento/status
 
 # Ver logs
-docker compose --profile production logs
-
-# Testar aplicação
-curl http://localhost:8000/api/v1/health
+tail -f logs/drg_guias.log
 ```
 
-### **🔧 Comandos Úteis**
-
-```bash
-# Entrar no container da aplicação
-docker compose --profile production exec drg-api bash
-
-# Ver logs da aplicação
-docker compose --profile production logs drg-api
-
-# Reiniciar apenas a aplicação
-docker compose --profile production restart drg-api
-
-# Reconstruir apenas a aplicação
-docker compose --profile production up --build drg-api
-
-# Parar aplicação
-docker compose --profile production down
-
-# Limpar tudo (cuidado!)
-docker compose --profile production down -v
-docker system prune -f
-```
-
-### **📊 Monitoramento Docker**
-
-```bash
-# Ver status dos containers
-docker compose --profile production ps
-
-# Ver uso de recursos
-docker stats
-
-# Ver logs em tempo real
-docker compose --profile production logs -f drg-api
-
-# Verificar saúde da aplicação
-docker compose --profile production exec drg-api curl http://localhost:8000/api/v1/health
-
-# Ver logs do PostgreSQL
-docker compose --profile production logs postgres
-```
-
-### **🆘 Troubleshooting Docker**
-
-#### **Problemas Comuns:**
-
-```bash
-# Container não inicia
-docker compose --profile production logs drg-api
-
-# Porta 8000 já está em uso
-# Pare outros serviços ou mude a porta no docker-compose.yml
-
-# Erro de permissão (Linux/Mac)
-sudo docker compose --profile production up --build
-
-# Limpar cache do Docker
-docker compose --profile production down
-docker system prune -f
-docker compose --profile production up --build
-
-# Reconstruir do zero
-docker compose --profile production down -v
-docker rmi $(docker images -q)
-docker compose --profile production up --build
-
-# Verificar se .env existe
-ls -la .env
-cp env.example .env
-
-# Verificar logs de segurança
-docker compose --profile production logs drg-api | grep -i "security\|blocked\|rate"
-```
-
-#### **Verificações:**
-
-```bash
-# Verificar se Docker está rodando
-docker ps
-
-# Verificar se porta 8000 está livre
-# Windows: netstat -an | findstr 8000
-# Linux/Mac: lsof -i :8000
-
-# Testar conectividade
-curl http://localhost:8000/api/v1/health
-```
-
-## 🧪 **Testes**
+## 🧪 Testes
 
 ```bash
 # Teste completo da API
@@ -278,144 +168,164 @@ python tests/testar_drg_com_logs.py
 
 # Teste de monitoramento
 python tests/testar_monitoramento.py
-
-# Adicionar dados de teste
-python tests/adicionar_guias.py
 ```
 
-## 📊 **Monitoramento**
-
-### **🤖 Monitoramento Automático**
-
-O sistema monitora automaticamente a tabela de guias e processa **até 10 guias por vez em lote** para otimizar performance:
-
-```bash
-# Verificar status
-curl http://localhost:8000/api/v1/monitoramento/status
-
-# Iniciar monitoramento
-curl -X POST http://localhost:8000/api/v1/monitoramento/start
-
-# Parar monitoramento
-curl -X POST http://localhost:8000/api/v1/monitoramento/stop
-```
-
-### **📋 Logs**
-
-- **Logs da aplicação:** `logs/app.log`
-- **Logs DRG:** `logs/drg_guias.log`
-- **Logs em tempo real:** `tail -f logs/drg_guias.log`
-
-## 🔗 **API Endpoints**
+## 📚 API Endpoints
 
 **Base URL:** `http://localhost:8000/api/v1`
 
-### **Principais Endpoints:**
+**Principais:**
 
 - `GET /health` - Health check
 - `GET /status` - Status do sistema
 - `GET /guias` - Listar guias
-- `GET /guias/{id}` - Consultar guia específica
+- `GET /guias/{id}` - Consultar guia
 - `POST /guias/{id}/processar` - Processar guia
 - `GET /monitoramento` - Status do monitoramento
-- `GET /monitoramento/status` - Status do monitoramento automático
 
 **Documentação interativa:**
 
 - **Swagger UI:** http://localhost:8000/docs
 - **ReDoc:** http://localhost:8000/redoc
 
-## 🏗️ **Arquitetura**
+## 🔄 Como Funciona
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Cliente       │───▶│  Tabela Guias    │───▶│  Monitor        │
-│   (Insere dados)│    │  (inovemed_tbl_  │    │  Automático     │
-│                 │    │   guias)         │    │  (Verifica)     │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │  Atualiza       │◀───│  API DRG        │
-                       │  Status         │    │  (Processa)     │
-                       └─────────────────┘    └─────────────────┘
+1. Cliente insere guia na tabela (inovemed_tbl_guias)
+   ↓
+2. Sistema monitora automaticamente (a cada X minutos)
+   ↓
+3. Detecta guias com status 'A' (Aguardando)
+   ↓
+4. Processa em lote (até 10 guias por vez)
+   ↓
+5. Monta JSON completo
+   ↓
+6. Envia para API DRG
+   ↓
+7. Atualiza status (T=Transmitida, E=Erro)
 ```
 
-## 🚀 **Deploy em Produção**
+## 📁 Estrutura de Diretórios
 
-### **1. Servidor com Docker**
+```
+drg_guias/
+├── app/
+│   ├── config/          # Configurações
+│   ├── database/        # Conexão com banco
+│   ├── models/          # Models SQLAlchemy
+│   ├── routes/          # Rotas FastAPI
+│   ├── services/        # Serviços (DRG, Monitor)
+│   └── utils/           # Utilitários
+├── database/            # Banco SQLite
+├── docs/                # Documentação
+├── logs/                # Logs da aplicação
+├── tests/               # Scripts de teste
+├── .env                 # Configurações (criar a partir de env.example)
+├── docker-compose.yml   # Docker Compose
+├── main.py              # Aplicação principal
+└── requirements.txt     # Dependências Python
+```
+
+## 🏗️ Tabelas do Banco
+
+### inovemed_tbl_guias (Principal)
+
+```sql
+INSERT INTO inovemed_tbl_guias (
+    numero_guia, codigo_operadora, tp_status, ...
+) VALUES (
+    'R123456', '3945', 'A', ...  -- tp_status='A' (Aguardando)
+);
+```
+
+**Status da Guia:**
+
+- `'A'` - Aguardando processamento
+- `'P'` - Processando
+- `'T'` - Transmitida com sucesso
+- `'E'` - Erro no processamento
+
+### Tabelas Relacionadas
+
+- `inovemed_tbl_anexos` - Documentos anexos
+- `inovemed_tbl_procedimentos` - Procedimentos da guia
+- `inovemed_tbl_diagnosticos` - Diagnósticos (CID-10)
+
+## 🔧 Troubleshooting
+
+### Aplicação não inicia
 
 ```bash
-# Configurar .env para produção
-DATABASE_TYPE=oracle
-DEVELOPMENT=False
-# ... outras configurações
+# Verificar se .env existe
+ls -la .env
 
-# Deploy
-docker-compose up -d --build
-```
+# Ver logs
+tail -f logs/drg_guias.log
 
-### **2. Servidor Tradicional**
-
-```bash
-# Instalar dependências
+# Verificar dependências
 pip install -r requirements.txt
-
-# Configurar .env
-cp env.example .env
-# Editar configurações
-
-# Executar com Uvicorn
-uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-## 📋 **Flags de Ambiente**
+### Erro de conexão Oracle
 
-### **Desenvolvimento**
+```bash
+# Verificar se Instant Client está instalado
+# Windows: C:\instantclient_21_13
+# Linux: /opt/oracle/instantclient_21_17
 
-```env
-DEVELOPMENT=True
-TESTING=False
-LOG_LEVEL=DEBUG
-DATABASE_TYPE=sqlite
-HOST=127.0.0.1
-PORT=8000
+# Verificar variáveis de ambiente
+echo $ORACLE_DIR
+echo $LD_LIBRARY_PATH
 ```
 
-### **Produção**
+### Guias não são processadas
 
-```env
-DEVELOPMENT=False
-TESTING=False
-LOG_LEVEL=WARNING
-DATABASE_TYPE=oracle
-HOST=0.0.0.0
-PORT=8000
+```bash
+# Verificar se monitoramento está ativo
+curl http://localhost:8000/api/v1/monitoramento/status
+
+# Verificar logs
+tail -f logs/drg_guias.log | grep -i "monitoramento"
+
+# Verificar guias no banco
+# Guias devem ter tp_status='A'
 ```
 
-### **Teste**
+### Docker não inicia
 
-```env
-DEVELOPMENT=False
-TESTING=True
-LOG_LEVEL=DEBUG
-DATABASE_TYPE=sqlite
+```bash
+# Verificar se Docker está rodando
+docker ps
+
+# Ver logs
+docker-compose logs
+
+# Reconstruir
+docker-compose down
+docker-compose up --build
 ```
 
-## 🆘 **Suporte**
+## 📖 Documentação Completa
 
-- **Documentação completa:** [docs/README.md](./docs/README.md)
-- **Logs detalhados:** `logs/drg_guias.log`
-- **Testes automatizados:** `tests/` folder
-- **API Documentation:** http://localhost:8000/docs
+- [API Routes](docs/API_ROUTES.md)
+- [Database Schema](docs/DATABASE_SCHEMA.md)
+- [Monitoramento Automático](docs/MONITORAMENTO_AUTOMATICO.md)
+- [Authentication Guide](docs/AUTHENTICATION_GUIDE.md)
 
-## 📝 **Changelog**
+## 🆘 Suporte
 
-- ✅ **FastAPI** - Migração completa do Flask
-- ✅ **Monitoramento Automático** - Processamento em lote (até 10 guias por vez)
-- ✅ **Logs Detalhados** - Rastreamento completo
-- ✅ **Docker** - Containerização completa com Docker Compose
-- ✅ **Multi-banco** - Oracle, PostgreSQL, SQLite
-- ✅ **Segurança** - Rate limiting e middleware de segurança
-- ✅ **Documentação** - Organizada e completa
-- ✅ **Processamento em Tempo Real** - Monitoramento automático configurável
+- **Documentação:** [docs/README.md](docs/README.md)
+- **Logs:** `logs/drg_guias.log`
+- **Testes:** `tests/` folder
+- **API Docs:** http://localhost:8000/docs
+
+## 📝 Changelog
+
+- ✅ FastAPI migration
+- ✅ Monitoramento automático (lote de 10 guias)
+- ✅ Logs detalhados
+- ✅ Docker completa
+- ✅ Multi-banco (Oracle, PostgreSQL, SQLite)
+- ✅ Segurança (rate limiting)
+- ✅ Processamento em tempo real

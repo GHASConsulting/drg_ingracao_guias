@@ -46,5 +46,8 @@ RUN mkdir -p logs
 # Expor porta
 EXPOSE 8000
 
+# Definir variável de ambiente para desenvolvimento
+ENV PYTHONUNBUFFERED=1
+
 # Comando para iniciar a aplicação
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -3,6 +3,13 @@ echo =======================================================
 echo   INICIANDO DRG-GUIAS (PRODUCAO)
 echo =======================================================
 
+:: Verifica se existe arquivo .env
+if not exist ".env" (
+    echo ⚠️  Arquivo .env nao encontrado!
+    echo Por favor, copie env.example para .env e configure
+    exit /b 1
+)
+
 :: Limpa variáveis antigas
 set ORACLE_HOME=
 set TNS_ADMIN=

@@ -239,8 +239,14 @@ class ConsultaExternaService:
         Desmembra o JSON de retorno e atualiza campos específicos da guia
         """
         try:
+            logger.info(f"Iniciando desmembramento para guia {guia.numero_guia}")
+            logger.info(f"Dados recebidos: {dados}")
+
             # 1. VERIFICAR APROVAÇÃO E STATUS
-            if self._verificar_aprovacao(dados):
+            aprovacao_detectada = self._verificar_aprovacao(dados)
+            logger.info(f"Aprovação detectada: {aprovacao_detectada}")
+
+            if aprovacao_detectada:
                 guia.situacao_guia = "A"  # Aprovada
                 guia.tp_status = "T"  # Transmitida
                 logger.info(f"Guia {guia.numero_guia} aprovada via consulta externa")
@@ -264,12 +270,19 @@ class ConsultaExternaService:
                 f"Campos desmembrados e atualizados para guia {guia.numero_guia}"
             )
 
+            # Commit das mudanças
+            db.commit()
+
         except Exception as e:
             logger.error(f"Erro ao desmembrar campos da guia {guia.numero_guia}: {e}")
+            db.rollback()
             raise
 
     def _atualizar_campos_autorizacao(self, guia: Guia, dados: Dict[str, Any]):
         """Atualiza campos relacionados à autorização"""
+        logger.info(f"Atualizando campos de autorização para guia {guia.numero_guia}")
+        logger.info(f"Dados recebidos: {dados}")
+
         campos_autorizacao = {
             "numero_autorizacao": [
                 "numero_autorizacao",
@@ -309,9 +322,23 @@ class ConsultaExternaService:
 
         for campo_guia, campos_json in campos_autorizacao.items():
             valor = self._buscar_valor_em_campos(dados, campos_json)
+            logger.info(f"Campo {campo_guia}: valor encontrado = {valor}")
             if valor:
+                # Converter data se necessário
+                if campo_guia == "data_autorizacao" and isinstance(valor, str):
+                    try:
+                        from datetime import datetime
+
+                        valor = datetime.strptime(valor, "%Y-%m-%d").date()
+                        logger.info(f"Data convertida: {valor}")
+                    except ValueError:
+                        logger.warning(f"Formato de data inválido: {valor}")
+                        continue
+
                 setattr(guia, campo_guia, valor)
-                logger.debug(f"Campo {campo_guia} atualizado: {valor}")
+                logger.info(f"Campo {campo_guia} atualizado: {valor}")
+            else:
+                logger.info(f"Campo {campo_guia}: nenhum valor encontrado")
 
     def _atualizar_campos_diarias(self, guia: Guia, dados: Dict[str, Any]):
         """Atualiza campos relacionados às diárias"""
@@ -497,6 +524,10 @@ class ConsultaExternaService:
                 "autorizada",
                 "authorized",
                 "status",
+                "situacaoGuia",
+                "situacao_guia",
+                "statusProcessamento",
+                "status_processamento",
             ]
 
             for campo in campos_aprovacao:
@@ -504,13 +535,15 @@ class ConsultaExternaService:
                     valor = dados[campo]
                     if isinstance(valor, str):
                         valor_lower = valor.lower()
-                        if any(
+                        # Verificar se é "A" (Aprovado) ou contém palavras de aprovação
+                        if valor == "A" or any(
                             palavra in valor_lower
                             for palavra in [
                                 "aprov",
                                 "autoriz",
                                 "approved",
                                 "authorized",
+                                "aprovada",
                             ]
                         ):
                             return True

@@ -11,11 +11,17 @@ class Procedimento(Base):
     # Campos principais
     id = Column(Integer, primary_key=True)
     tabela = Column(String(2), nullable=False)  # 00, 20, 22, 98
-    codigo = Column(String(10), nullable=False)
+    codigo = Column(
+        String(10), nullable=False
+    )  # Código identificador do procedimento ou item assistencial solicitado, conforme a tabela de referência (ex: TUSS)
     descricao = Column(String(150), nullable=False)
     qtde_solicitada = Column(Integer, nullable=False)
-    valor_unitario = Column(Numeric(8, 2), nullable=False)
-    qtde_autorizada = Column(Integer, nullable=False)
+    valor_unitario = Column(
+        Numeric(8, 2), nullable=False
+    )  # Valor unitário do procedimento ou item solicitado (formato 8,2 - "." para casas decimais)
+    qtde_autorizada = Column(
+        Integer, nullable=False
+    )  # Quantidade do procedimento ou item autorizada pela operadora (caso não autorize deve ser informado zero)
 
     # Chave estrangeira
     guia_id = Column(Integer, ForeignKey("inovemed_tbl_guias.id"), nullable=False)
