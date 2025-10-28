@@ -10,6 +10,25 @@ Sistema para processamento automático e envio de guias de internação para a A
 - 📊 **Logs Detalhados** - Rastreamento completo
 - 🐳 **Docker Ready** - Deploy simplificado
 
+## 🎯 Início Rápido
+
+**Método Principal:** Use os scripts `.bat` (Windows) ou `.sh` (Linux/Mac) para iniciar a aplicação rapidamente:
+
+```bash
+# Windows - Desenvolvimento
+start_drg_api_dev.bat
+
+# Windows - Produção
+start_drg_api_prod.bat
+
+# Linux/Mac - Produção
+./start_drg_api_prod.sh
+```
+
+Estes scripts fazem tudo automaticamente: ativam ambiente virtual, configuram Oracle, testam banco e iniciam a API.
+
+**Acesse:** http://localhost:8000/docs
+
 ## 🚀 Instalação Rápida
 
 ### Pré-requisitos
@@ -61,7 +80,58 @@ AUTO_MONITOR_ENABLED=True
 MONITOR_INTERVAL_MINUTES=5
 ```
 
-## 🐳 Executar com Docker
+## ⚡ Executar a Aplicação (Método Principal)
+
+### 🪟 Windows - Desenvolvimento
+
+```bash
+# Duplo clique ou execute no terminal
+start_drg_api_dev.bat
+```
+
+Este script:
+
+- ✅ Ativa o ambiente virtual automaticamente
+- ✅ Configura variáveis Oracle
+- ✅ Testa conexão com banco
+- ✅ Inicia a aplicação FastAPI
+
+**Acesse:** http://localhost:8000/docs
+
+### 🐧 Linux/Mac - Produção
+
+```bash
+# Dar permissão de execução
+chmod +x start_drg_api_prod.sh
+
+# Executar
+./start_drg_api_prod.sh
+```
+
+### 🪟 Windows - Produção
+
+```bash
+# Executar no terminal
+start_drg_api_prod.bat
+```
+
+---
+
+## 🔄 Métodos Alternativos (Secundários)
+
+### 🐍 Executar com Python Direto
+
+```bash
+# Windows
+venv\Scripts\activate
+python main.py
+
+# Linux/Mac
+source venv/bin/activate
+python main.py
+```
+
+### 🐳 Executar com Docker
 
 ```bash
 # Construir e iniciar
@@ -74,33 +144,6 @@ docker-compose logs -f drg-api
 docker-compose down
 
 # Acesse: http://localhost:8000/docs
-```
-
-## 🐍 Executar Localmente
-
-### Windows
-
-```bash
-# Ativar ambiente virtual
-venv\Scripts\activate
-
-# Executar
-python main.py
-# ou
-start_drg_api_dev.bat
-```
-
-### Linux/Mac
-
-```bash
-# Ativar ambiente virtual
-source venv/bin/activate
-
-# Executar
-python main.py
-# ou
-chmod +x start_drg_api_prod.sh
-./start_drg_api_prod.sh
 ```
 
 ## ✅ Testar Conexão com Banco
