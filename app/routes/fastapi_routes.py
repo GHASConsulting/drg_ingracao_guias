@@ -38,6 +38,7 @@ from app.services.guia_service import GuiaService
 from app.services.monitor_service import monitor_service
 from app.services.consulta_externa_service import ConsultaExternaService
 from app.services.monitor_campos_service import MonitorCamposService
+from app.services.monitor_pull_service import monitor_pull_service
 from app.config.config import get_settings
 
 # Configurar logging
@@ -904,3 +905,91 @@ async def obter_status_monitoramento_campos():
     except Exception as e:
         logger.error(f"Erro ao obter status do monitoramento de campos: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/monitor-pull/status", response_model=dict)
+async def obter_status_monitoramento_pull():
+    """
+    Obtém o status do monitoramento PULL da DRG.
+    """
+    try:
+        stats = await monitor_pull_service.obter_estatisticas_pull()
+
+        return {
+            **stats,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao obter status do monitoramento PULL: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/monitor-pull/start", response_model=dict)
+async def iniciar_monitoramento_pull():
+    """
+    Inicia o monitoramento PULL manualmente.
+    """
+    try:
+        # Verificar se já está rodando
+        if monitor_pull_service._running:
+            return {
+                "sucesso": False,
+                "mensagem": "Monitoramento PULL já está em execução",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Iniciar monitoramento
+        await monitor_pull_service.iniciar_monitoramento_pull()
+
+        return {
+            "sucesso": True,
+            "mensagem": "Monitoramento PULL iniciado com sucesso",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao iniciar monitoramento PULL: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )
+
+
+@router.post("/monitor-pull/stop", response_model=dict)
+async def parar_monitoramento_pull():
+    """
+    Para o monitoramento PULL manualmente.
+    """
+    try:
+        # Verificar se está rodando
+        if not monitor_pull_service._running:
+            return {
+                "sucesso": False,
+                "mensagem": "Monitoramento PULL não está em execução",
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+        # Parar monitoramento
+        await monitor_pull_service.parar_monitoramento_pull()
+
+        return {
+            "sucesso": True,
+            "mensagem": "Monitoramento PULL parado com sucesso",
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao parar monitoramento PULL: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "sucesso": False,
+                "erro": f"Erro interno: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+            },
+        )

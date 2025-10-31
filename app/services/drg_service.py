@@ -1,6 +1,6 @@
 import requests  # pyright: ignore[reportMissingModuleSource]
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from app.config.config import get_settings
 from app.services.token_manager import (
     TokenManager,
@@ -106,28 +106,43 @@ class DRGService:
         settings = get_settings()
         self.auth_url = settings.AUTH_API_URL
         self.drg_url = settings.DRG_API_URL
+        self.drg_pull_url = settings.DRG_API_PULL_URL
         self.username = settings.DRG_USERNAME
         self.password = settings.DRG_PASSWORD
         self.api_key = settings.DRG_API_KEY
+        self.pull_username = settings.DRG_PULL_USERNAME
+        self.pull_password = settings.DRG_PULL_PASSWORD
+        # Se DRG_PULL_API_KEY não estiver configurada ou for placeholder, usa a API Key padrão
+        pull_key = settings.DRG_PULL_API_KEY
+        if not pull_key or pull_key == "seu_codigo_unico_drg_aqui":
+            self.pull_api_key = settings.DRG_API_KEY
+        else:
+            self.pull_api_key = pull_key
         self._token = None
+        self._pull_token = None  # Token separado para PULL
 
         # Inicializar TokenManager
         self.token_manager = TokenManager(self)
 
-    def autenticar(self) -> Dict[str, Any]:
+    def autenticar(self, use_pull_credentials: bool = False) -> Dict[str, Any]:
         """Autentica na API DRG e obtém token."""
         try:
+            # Escolher credenciais baseado no contexto
+            username = self.pull_username if use_pull_credentials else self.username
+            password = self.pull_password if use_pull_credentials else self.password
+            api_key = self.pull_api_key if use_pull_credentials else self.api_key
+            
             # Dados de autenticação no formato correto da API DRG
             auth_data = {
-                "userName": self.username,
-                "password": self.password,
+                "userName": username,
+                "password": password,
                 "origin": "API_DRG",
             }
 
             # Headers no formato correto da API DRG
             headers = {
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {api_key}",
             }
 
             # Log da requisição de autenticação
@@ -147,12 +162,18 @@ class DRGService:
                 # A API retorna o token diretamente como texto, não como JSON
                 token = response.text.strip()
                 if token:
-                    self._token = token
+                    # Armazenar token no local apropriado
+                    if use_pull_credentials:
+                        self._pull_token = token
+                        token_to_return = self._pull_token
+                    else:
+                        self._token = token
+                        token_to_return = self._token
 
                     # Log de sucesso na autenticação
                     drg_logger.log_authentication(success=True, token=token)
 
-                    return {"sucesso": True, "token": self._token}
+                    return {"sucesso": True, "token": token_to_return}
                 else:
                     drg_logger.log_authentication(
                         success=False, error="Token vazio na resposta"
@@ -658,3 +679,135 @@ class DRGService:
             }
         except Exception as e:
             return {"sucesso": False, "erro": f"Erro ao renovar token: {str(e)}"}
+
+    def consumir_exportacao_guias(
+        self,
+        numero_guia: Optional[str] = None,
+        data_ultima_alteracao: Optional[str] = None,
+        page: int = 1,
+    ) -> Dict[str, Any]:
+        """
+        Consome a API de exportação de guias (PULL da DRG).
+
+        Args:
+            numero_guia: Lista de números das guias (será convertido para array)
+            data_ultima_alteracao: Data da última alteração no formato aaaa-mm-dd
+            page: Número da página (padrão: 1, máximo 100 registros por página)
+
+        Returns:
+            Dict: Resultado da consulta com lista de guias
+
+        Documentação:
+            - URL: https://apidrg-exporta-assistencial.drgbrasil.com.br/guiainternacao/search
+            - Método: POST
+            - Headers: Authorization (JWT), x-api-key
+        """
+        try:
+            # Validar que ao menos um parâmetro foi informado
+            if not numero_guia and not data_ultima_alteracao:
+                return {
+                    "sucesso": False,
+                    "erro": "É obrigatório informar ao menos um número de guia ou data de alteração",
+                }
+
+            # Obter token para PULL (autenticar com credenciais específicas do PULL)
+            auth_result = self.autenticar(use_pull_credentials=True)
+            if not auth_result.get("sucesso"):
+                return {
+                    "sucesso": False,
+                    "erro": f"Erro na autenticação PULL: {auth_result.get('erro')}",
+                }
+            token = auth_result["token"]
+
+            # Montar dados da requisição
+            payload = {}
+            if numero_guia:
+                # Se numero_guia for string, converter para array
+                if isinstance(numero_guia, str):
+                    payload["numeroGuia"] = [numero_guia]
+                else:
+                    payload["numeroGuia"] = numero_guia
+
+            if data_ultima_alteracao:
+                payload["dataUltimaAlteracao"] = data_ultima_alteracao
+
+            payload["page"] = page
+
+            # Headers da requisição
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": token,
+                "x-api-key": self.pull_api_key,
+            }
+
+            # Log da requisição
+            drg_logger.log_request("POST", self.drg_pull_url, headers, json_data=payload)
+
+            # Fazer requisição
+            response = requests.post(
+                self.drg_pull_url, json=payload, headers=headers, timeout=60
+            )
+
+            # Log da resposta
+            response_json = None
+            try:
+                response_json = response.json()
+            except:
+                pass
+
+            drg_logger.log_response(
+                response.status_code,
+                dict(response.headers),
+                response.text,
+                response_json,
+            )
+
+            # Processar resposta
+            if response.status_code == 200:
+                # Sucesso - retornar dados
+                return {"sucesso": True, "resposta": response_json}
+            else:
+                # Erro HTTP
+                error_msg = f"Erro na exportação: {response.status_code} - {response.text}"
+                retentavel = is_retentable_error(error_msg, response.status_code)
+                return {
+                    "sucesso": False,
+                    "erro": error_msg,
+                    "retentavel": retentavel,
+                    "status_code": response.status_code,
+                }
+
+        except requests.exceptions.Timeout as e:
+            error_msg = "Timeout na requisição de exportação (60s)"
+            drg_logger.log_error(e, "Exportação de guias DRG - Timeout")
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,
+            }
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Erro de conexão: {str(e)}"
+            drg_logger.log_error(e, "Exportação de guias DRG - Erro de conexão")
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,
+            }
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição de exportação: {str(e)}"
+            drg_logger.log_error(e, "Exportação de guias DRG")
+            retentavel = is_retentable_error(error_msg)
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }
+        except Exception as e:
+            error_msg = f"Erro ao consumir exportação: {str(e)}"
+            drg_logger.log_error(e, "Exportação de guias DRG")
+            retentavel = is_retentable_error(error_msg)
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }

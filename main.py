@@ -27,6 +27,7 @@ from app.config.config import get_settings
 from app.database.database import init_db
 from app.services.monitor_service import monitor_service
 from app.services.monitor_campos_service import monitor_campos_service
+from app.services.monitor_pull_service import monitor_pull_service
 from app.middleware.security import setup_security_middleware
 
 
@@ -54,6 +55,9 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("🔕 Monitoramento de campos desabilitado")
 
+    # Iniciar monitoramento PULL se habilitado
+    await monitor_pull_service.iniciar_monitoramento_pull()
+
     logger.info("Aplicação FastAPI iniciada com sucesso!")
 
     yield
@@ -75,6 +79,9 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
         logger.info("✅ Monitoramento de campos parado")
+
+    # Parar monitoramento PULL
+    await monitor_pull_service.parar_monitoramento_pull()
 
 
 def create_app() -> FastAPI:

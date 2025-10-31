@@ -37,9 +37,13 @@ class Settings(BaseSettings):
     # Configurações da API DRG
     AUTH_API_URL: str = "https://api-autenticacao.iagsaude.com/login"
     DRG_API_URL: str = "https://api-hospitalar.iagsaude.com/integracao/guias/save"
+    DRG_API_PULL_URL: str = "https://api-exportacaoassistencial.iagsaude.com/guiainternacao/search"
     DRG_USERNAME: str = "1_import_guias"
     DRG_PASSWORD: str = "BX!c1tm9sqJp"
     DRG_API_KEY: str = "298d9c85-65af-44f9-b684-0dd92dcb3e57"
+    DRG_PULL_USERNAME: str = "1632-I-EXPORTA_GUIA"  # Usuário para PULL
+    DRG_PULL_PASSWORD: str = "JOvZeHKqGkr3"  # Senha para PULL
+    DRG_PULL_API_KEY: Optional[str] = None  # Opcional: usa DRG_API_KEY se não informado
 
     # Configurações de log
     LOG_LEVEL: str = "INFO"
@@ -55,6 +59,9 @@ class Settings(BaseSettings):
     # Configurações de monitoramento automático
     AUTO_MONITOR_ENABLED: bool = True
     MONITOR_INTERVAL_MINUTES: int = 5
+    MONITOR_PULL_ENABLED: bool = True  # Monitoramento PULL da DRG
+    MONITOR_PULL_INTERVAL_MINUTES: int = 5  # Intervalo para buscar retorno
+    MONITOR_PULL_MAX_PAGE_SIZE: int = 100  # Máximo de registros por página
 
     # Configurações para consulta externa de guias
     CONSULTA_EXTERNA_TIMEOUT_MS: int = 30000  # 30 segundos em milissegundos
