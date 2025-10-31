@@ -87,13 +87,8 @@ dump.rdb
 *.bak
 *.backup
 
-# Documentation (except README files)
-docs/*.pdf
-docs/*.xlsx
-docs/*.csv
-docs/*.json
-docs/*.zip
-docs/Guias_*/
+# Documentation folder - ignore tudo (incluindo PDFs, Excel, etc.)
+docs/
 
 # Migration files (keep structure, ignore specific migrations)
 migrations/versions/*.py
@@ -131,9 +126,10 @@ enviar_json.py
 json_atual_completo.py
 migrar_consulta_externa.py
 
-# Documentation files
+# Documentation files na raiz
 IMPLEMENTACAO_COMPLETA.md
 GUIA_COMPLEMENTAR.md
+IMPLANTACAO_CLIENTE.md
 
 # Compressed files in docs
 *.zip
