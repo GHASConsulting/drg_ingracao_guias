@@ -245,9 +245,18 @@ async def processar_guia(
             guia.tp_status = "T"  # Transmitida
             guia.mensagem_erro = None
         else:
-            # Erro
-            guia.tp_status = "E"  # Erro
-            guia.mensagem_erro = resultado["erro"]
+            # Erro - verificar se é retentável
+            erro_msg = resultado.get("erro", "Erro desconhecido")
+            retentavel = resultado.get("retentavel", False)
+
+            if retentavel:
+                # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                guia.tp_status = "A"  # Voltar para Aguardando
+                guia.mensagem_erro = erro_msg
+            else:
+                # Erro não-retentável (validação) - marcar como erro
+                guia.tp_status = "E"  # Erro
+                guia.mensagem_erro = erro_msg
 
         db.commit()
 

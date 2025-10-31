@@ -161,13 +161,27 @@ class MonitorService:
                     f"✅ Lote de {len(guias)} guias processado com sucesso"
                 )
             else:
-                # Erro - marcar todas como erro
+                # Erro - verificar se é retentável
                 erro_msg = resultado.get("erro", "Erro desconhecido")
-                for guia in guias:
-                    guia.tp_status = "E"
-                    guia.mensagem_erro = erro_msg
+                retentavel = resultado.get("retentavel", False)
 
-                self.logger.error(f"❌ Erro ao processar lote: {erro_msg}")
+                if retentavel:
+                    # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                    for guia in guias:
+                        guia.tp_status = "A"  # Voltar para Aguardando
+                        guia.mensagem_erro = erro_msg
+                        # Não incrementar tentativas aqui, já foi incrementado antes
+
+                    self.logger.warning(
+                        f"⚠️ Erro retentável no lote (será reenviado): {erro_msg}"
+                    )
+                else:
+                    # Erro não-retentável (validação) - marcar como erro
+                    for guia in guias:
+                        guia.tp_status = "E"
+                        guia.mensagem_erro = erro_msg
+
+                    self.logger.error(f"❌ Erro ao processar lote: {erro_msg}")
 
             # Atualizar data de processamento
             for guia in guias:
@@ -176,10 +190,25 @@ class MonitorService:
             session.commit()
 
         except Exception as e:
-            # Erro crítico - marcar todas como erro
+            # Erro crítico - verificar se é retentável (ex: erro de conexão com banco)
+            error_msg = f"Erro crítico: {str(e)}"
+            error_lower = str(e).lower()
+            
+            # Considerar erros de conexão/network como retentáveis
+            is_connection_error = any(
+                keyword in error_lower
+                for keyword in ["connection", "conexão", "network", "timeout", "unavailable"]
+            )
+            
             for guia in guias:
-                guia.tp_status = "E"
-                guia.mensagem_erro = f"Erro crítico: {str(e)}"
+                if is_connection_error:
+                    # Erro retentável - manter status 'A'
+                    guia.tp_status = "A"
+                else:
+                    # Erro não-retentável - marcar como erro
+                    guia.tp_status = "E"
+                
+                guia.mensagem_erro = error_msg
                 if self.auto_reprocess:
                     guia.tentativas += 1
                 else:
@@ -189,7 +218,10 @@ class MonitorService:
                 guia.data_processamento = datetime.utcnow()
 
             session.commit()
-            self.logger.error(f"❌ Erro crítico ao processar lote: {e}")
+            if is_connection_error:
+                self.logger.warning(f"⚠️ Erro crítico retentável ao processar lote (será reenviado): {e}")
+            else:
+                self.logger.error(f"❌ Erro crítico ao processar lote: {e}")
             raise
 
     async def _process_single_guia(self, session: Session, guia: Guia):
@@ -219,20 +251,52 @@ class MonitorService:
                 guia.mensagem_erro = None
                 self.logger.info(f"✅ Guia {guia.numero_guia} processada com sucesso")
             else:
-                # Erro
-                guia.tp_status = "E"
-                guia.mensagem_erro = resultado.get("erro", "Erro desconhecido")
-                self.logger.error(
-                    f"❌ Erro ao processar guia {guia.numero_guia}: {resultado.get('erro')}"
-                )
+                # Erro - verificar se é retentável
+                erro_msg = resultado.get("erro", "Erro desconhecido")
+                retentavel = resultado.get("retentavel", False)
+
+                if retentavel:
+                    # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                    guia.tp_status = "A"  # Voltar para Aguardando
+                    guia.mensagem_erro = erro_msg
+                    # Não incrementar tentativas aqui, já foi incrementado antes
+                    self.logger.warning(
+                        f"⚠️ Erro retentável na guia {guia.numero_guia} (será reenviada): {erro_msg}"
+                    )
+                else:
+                    # Erro não-retentável (validação) - marcar como erro
+                    guia.tp_status = "E"
+                    guia.mensagem_erro = erro_msg
+                    self.logger.error(
+                        f"❌ Erro ao processar guia {guia.numero_guia}: {erro_msg}"
+                    )
 
             guia.data_processamento = datetime.utcnow()
             session.commit()
 
         except Exception as e:
-            # Erro crítico
-            guia.tp_status = "E"
-            guia.mensagem_erro = f"Erro crítico: {str(e)}"
+            # Erro crítico - verificar se é retentável
+            error_msg = f"Erro crítico: {str(e)}"
+            error_lower = str(e).lower()
+            
+            # Considerar erros de conexão/network como retentáveis
+            is_connection_error = any(
+                keyword in error_lower
+                for keyword in ["connection", "conexão", "network", "timeout", "unavailable"]
+            )
+            
+            if is_connection_error:
+                # Erro retentável - manter status 'A'
+                guia.tp_status = "A"
+                self.logger.warning(
+                    f"⚠️ Erro crítico retentável na guia {guia.numero_guia} (será reenviada): {e}"
+                )
+            else:
+                # Erro não-retentável - marcar como erro
+                guia.tp_status = "E"
+                self.logger.error(f"❌ Erro crítico na guia {guia.numero_guia}: {e}")
+            
+            guia.mensagem_erro = error_msg
             if self.auto_reprocess:
                 guia.tentativas += 1
             else:

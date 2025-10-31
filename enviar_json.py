@@ -1,26 +1,26 @@
-#!/usr/bin/env python3
 """
 Script simples para enviar JSON para a API DRG
 """
 
 import json
+from datetime import datetime
 from app.services.drg_service import DRGService
 
 
 def enviar_json():
     """Envia JSON para a API DRG"""
 
-    # JSON de exemplo - você pode modificar conforme necessário
+    # JSON atualizado conforme json_atual_completo.py
     json_drg = {
         "loteGuias": {
             "guia": [
                 {
                     "codigoOperadora": "3945",
-                    "numeroGuia": "R679500",
+                    "numeroGuia": f"R{datetime.now().strftime('%H%M%S')}",
                     "numeroGuiaOperadora": "UI856321",
-                    "numeroGuiaInternacao": "G001-COMP",
+                    "numeroGuiaInternacao": "",
                     "dataAutorizacao": "2025-08-02",
-                    "senha": "896532177",
+                    "senha": "***2177",
                     "dataValidade": "2025-07-04",
                     "numeroCarteira": "797615",
                     "dataValidadeCarteira": "2027-09-04",
@@ -28,7 +28,7 @@ def enviar_json():
                     "dataNascimento": "1955-05-04 00:00",
                     "sexo": "M",
                     "situacaoBeneficiario": "A",
-                    "nomeBeneficiario": "JOÃO DA SILVA SANTOS",
+                    "nomeBeneficiario": "João Silva Santos",
                     "codigoPrestador": "7050611659800A",
                     "nomePrestador": "GABRIELA MARTINS",
                     "nomeProfissional": "ANGELICA MIRANDA",
@@ -70,12 +70,12 @@ def enviar_json():
                     "dataAlta": "2025-08-16",
                     "anexo": [
                         {
-                            "dataCriacao": "2025-08-05",
+                            "dataCriacao": "2025-10-24",
                             "nome": "DOC TESTE 02",
                             "numeroLoteDocumento": "78544125445",
                             "numeroProtocoloDocumento": "44125745841",
                             "formatoDocumento": "2",
-                            "sequencialDocumento": "7854",
+                            "sequencialDocumento": 7854,
                             "urlDocumento": "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png",
                             "observacaoDocumento": "OBSERVAÇÃO DO DOCUMENTO TESTE 02",
                             "tipoDocumento": "03",

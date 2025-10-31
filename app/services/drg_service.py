@@ -10,6 +10,95 @@ from app.services.token_manager import (
 from app.utils.logger import drg_logger
 
 
+def is_retentable_error(error_msg: str, status_code: int = None) -> bool:
+    """
+    Verifica se um erro é retentável (deve manter status 'A' para reenvio).
+    
+    Erros retentáveis (infraestrutura temporária):
+    - Erro 500 (erro interno do servidor)
+    - Erro 502, 503, 504 (bad gateway, service unavailable, gateway timeout)
+    - Timeout
+    - Erros de conexão (DRG fora do ar)
+    - Erros de rede
+    
+    Erros não-retentáveis (validação/dados):
+    - Erro 400 (bad request)
+    - Erro 401, 403 (autenticação/autorização - podem ser temporários, mas tratamos como não-retentáveis)
+    - Erros de validação retornados pela API
+    
+    Args:
+        error_msg: Mensagem de erro
+        status_code: Código HTTP de status (se disponível)
+    
+    Returns:
+        bool: True se o erro é retentável, False caso contrário
+    """
+    error_lower = error_msg.lower() if error_msg else ""
+    
+    # Erros de status HTTP retentáveis
+    if status_code:
+        if status_code >= 500:  # 500, 502, 503, 504
+            return True
+        if status_code in [400, 401, 403, 404]:  # Não retentáveis
+            return False
+    
+    # Palavras-chave que indicam erro retentável
+    retentable_keywords = [
+        "timeout",
+        "connection",
+        "conexão",
+        "network",
+        "rede",
+        "unavailable",
+        "indisponível",
+        "gateway",
+        "server error",
+        "erro interno",
+        "internal server",
+        "temporarily",
+        "temporariamente",
+        "service unavailable",
+        "serviço indisponível",
+    ]
+    
+    # Palavras-chave que indicam erro não-retentável (validação)
+    non_retentable_keywords = [
+        "invalid",
+        "inválido",
+        "campo obrigatório",
+        "obrigatório",
+        "não foi informado",
+        "não encontrado",
+        "não cadastrado",
+        "cadastrado no drg",
+        "autorização não",
+        "validação",
+        "validation",
+        "bad request",
+        "requisição inválida",
+        "unauthorized",
+        "forbidden",
+        "não autorizado",
+    ]
+    
+    # Verificar primeiro por erros não-retentáveis (validação)
+    for keyword in non_retentable_keywords:
+        if keyword in error_lower:
+            return False
+    
+    # Verificar por erros retentáveis (infraestrutura)
+    for keyword in retentable_keywords:
+        if keyword in error_lower:
+            return True
+    
+    # Se tem código de status 500+, é retentável
+    if status_code and status_code >= 500:
+        return True
+    
+    # Padrão: se não identificar, assume não-retentável para segurança
+    return False
+
+
 class DRGService:
     """Serviço para comunicação com a API DRG."""
 
@@ -20,8 +109,6 @@ class DRGService:
         self.username = settings.DRG_USERNAME
         self.password = settings.DRG_PASSWORD
         self.api_key = settings.DRG_API_KEY
-        self.put_timeout_ms = settings.DRG_PUT_TIMEOUT_MS
-        self.put_max_tentativas = settings.DRG_PUT_MAX_TENTATIVAS
         self._token = None
 
         # Inicializar TokenManager
@@ -177,6 +264,88 @@ class DRGService:
                 # Sucesso - processar resposta
                 try:
                     response_json = response.json()
+
+                    # Verificar se há erros na resposta mesmo com status 200
+                    erro_msg = None
+                    if isinstance(response_json, dict):
+                        # Verificar diferentes formatos de erro - CAPTURAR QUALQUER ERRO
+                        if "erro" in response_json:
+                            erro_msg = response_json["erro"]
+                        elif "error" in response_json:
+                            erro_msg = response_json["error"]
+                        elif "mensagem" in response_json and (
+                            "erro" in str(response_json["mensagem"]).lower()
+                            or "error" in str(response_json["mensagem"]).lower()
+                        ):
+                            erro_msg = response_json["mensagem"]
+                        elif "message" in response_json and (
+                            "erro" in str(response_json["message"]).lower()
+                            or "error" in str(response_json["message"]).lower()
+                        ):
+                            erro_msg = response_json["message"]
+                        elif response_json.get("status") in ["erro", "error"]:
+                            erro_msg = (
+                                response_json.get("message")
+                                or response_json.get("mensagem")
+                                or str(response_json)
+                            )
+                        elif "guias" in response_json:
+                            erros_guias = []
+                            for guia in response_json["guias"]:
+                                if isinstance(guia, dict):
+                                    if "erro" in guia and guia["erro"] is not None:
+                                        erros_guias.append(str(guia["erro"]))
+                                    elif "error" in guia and guia["error"] is not None:
+                                        erros_guias.append(str(guia["error"]))
+                                    elif guia.get("status") in ["erro", "error"]:
+                                        erro_guia = (
+                                            guia.get("mensagem")
+                                            or guia.get("message")
+                                            or "Erro na guia"
+                                        )
+                                        if erro_guia:
+                                            erros_guias.append(str(erro_guia))
+                            if erros_guias:
+                                erro_msg = "; ".join(erros_guias)
+                        # Capturar qualquer resposta que pareça ser de erro
+                        if not erro_msg and any(
+                            key in response_json
+                            for key in [
+                                "falha",
+                                "failure",
+                                "problema",
+                                "problem",
+                                "invalid",
+                                "invalido",
+                            ]
+                        ):
+                            erro_msg = str(response_json)
+                    elif isinstance(response_json, str):
+                        # Se a resposta for uma string, pode ser uma mensagem de erro
+                        if (
+                            "erro" in response_json.lower()
+                            or "error" in response_json.lower()
+                        ):
+                            erro_msg = response_json
+
+                    # Se encontrou erro, tratar como erro (não-retentável - validação)
+                    if erro_msg:
+                        drg_logger.log_guide_processing(
+                            f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                            f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                            json_lote,
+                            False,
+                            None,
+                            erro_msg,
+                        )
+                        return {
+                            "sucesso": False,
+                            "erro": erro_msg,
+                            "resposta": response_json,
+                            "retentavel": False,  # Erros de validação não são retentáveis
+                        }
+
+                    # Sucesso real
                     drg_logger.log_guide_processing(
                         f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
                         f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
@@ -186,22 +355,27 @@ class DRGService:
                     )
                     return {"sucesso": True, "resposta": response_json}
                 except json.JSONDecodeError:
-                    # Resposta não é JSON válido
+                    # Resposta não é JSON válido - pode ser erro de servidor
+                    error_msg = f"Resposta não é JSON válido: {response.text[:200]}"
                     drg_logger.log_guide_processing(
                         f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
                         f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
                         json_lote,
                         False,
                         None,
-                        f"Resposta não é JSON válido: {response.text[:200]}",
+                        error_msg,
                     )
+                    # Se status é 500+, é retentável
+                    retentavel = response.status_code >= 500 if response.status_code else False
                     return {
                         "sucesso": False,
-                        "erro": f"Resposta inválida: {response.text[:200]}",
+                        "erro": error_msg,
+                        "retentavel": retentavel,
                     }
             else:
-                # Erro HTTP
+                # Erro HTTP - verificar se é retentável
                 error_msg = f"HTTP {response.status_code}: {response.text[:200]}"
+                retentavel = is_retentable_error(error_msg, response.status_code)
                 drg_logger.log_guide_processing(
                     f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
                     f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
@@ -210,7 +384,12 @@ class DRGService:
                     None,
                     error_msg,
                 )
-                return {"sucesso": False, "erro": error_msg}
+                return {
+                    "sucesso": False,
+                    "erro": error_msg,
+                    "retentavel": retentavel,
+                    "status_code": response.status_code,
+                }
 
         except requests.exceptions.Timeout:
             error_msg = "Timeout na requisição (60s)"
@@ -222,9 +401,29 @@ class DRGService:
                 None,
                 error_msg,
             )
-            return {"sucesso": False, "erro": error_msg}
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,  # Timeout é retentável
+            }
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Erro de conexão: {str(e)}"
+            drg_logger.log_guide_processing(
+                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
+                json_lote,
+                False,
+                None,
+                error_msg,
+            )
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,  # Erro de conexão é retentável
+            }
         except requests.exceptions.RequestException as e:
             error_msg = f"Erro na requisição: {str(e)}"
+            retentavel = is_retentable_error(error_msg)
             drg_logger.log_guide_processing(
                 f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
                 f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
@@ -233,18 +432,27 @@ class DRGService:
                 None,
                 error_msg,
             )
-            return {"sucesso": False, "erro": error_msg}
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }
         except Exception as e:
             error_msg = f"Erro inesperado: {str(e)}"
+            retentavel = is_retentable_error(error_msg)
             drg_logger.log_guide_processing(
-                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))}",
+                f"lote_{len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
                 f"Lote de {len(json_lote.get('loteGuias', {}).get('guia', []))} guias",
                 json_lote,
                 False,
                 None,
                 error_msg,
             )
-            return {"sucesso": False, "erro": error_msg}
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }
 
     def _enviar_com_token(self, json_drg: Dict[str, Any], token: str) -> Dict[str, Any]:
         """
@@ -284,14 +492,129 @@ class DRGService:
             )
 
             if response.status_code == 200:
+                # Verificar se a resposta contém erros mesmo com status 200
+                if response_json:
+                    # Verificar se há campo de erro na resposta
+                    erro_msg = None
+
+                    # Verificar diferentes formatos de erro que o DRG pode retornar
+                    if isinstance(response_json, dict):
+                        # Formato 1: {"erro": "mensagem"}
+                        if "erro" in response_json:
+                            erro_msg = response_json["erro"]
+                        # Formato 2: {"error": "mensagem"}
+                        elif "error" in response_json:
+                            erro_msg = response_json["error"]
+                        # Formato 3: {"mensagem": "erro"}
+                        elif "mensagem" in response_json and (
+                            "erro" in str(response_json["mensagem"]).lower()
+                            or "error" in str(response_json["mensagem"]).lower()
+                        ):
+                            erro_msg = response_json["mensagem"]
+                        # Formato 4: {"message": "erro"}
+                        elif "message" in response_json and (
+                            "erro" in str(response_json["message"]).lower()
+                            or "error" in str(response_json["message"]).lower()
+                        ):
+                            erro_msg = response_json["message"]
+                        # Formato 5: {"status": "erro", "message": "..."}
+                        elif response_json.get("status") in ["erro", "error"]:
+                            erro_msg = (
+                                response_json.get("message")
+                                or response_json.get("mensagem")
+                                or str(response_json)
+                            )
+                        # Formato 6: {"guias": [{"erro": "..."}]} - erros dentro das guias
+                        elif "guias" in response_json:
+                            erros_guias = []
+                            for guia in response_json["guias"]:
+                                if isinstance(guia, dict):
+                                    if "erro" in guia and guia["erro"] is not None:
+                                        erros_guias.append(str(guia["erro"]))
+                                    elif "error" in guia and guia["error"] is not None:
+                                        erros_guias.append(str(guia["error"]))
+                                    elif guia.get("status") in ["erro", "error"]:
+                                        erro_guia = (
+                                            guia.get("mensagem")
+                                            or guia.get("message")
+                                            or "Erro na guia"
+                                        )
+                                        if erro_guia:
+                                            erros_guias.append(str(erro_guia))
+                            if erros_guias:
+                                erro_msg = "; ".join(erros_guias)
+                        # Se não encontrou erro mas a resposta parece ser de erro, capturar tudo
+                        if not erro_msg and any(
+                            key in response_json
+                            for key in ["falha", "failure", "problema", "problem"]
+                        ):
+                            erro_msg = str(response_json)
+                    elif isinstance(response_json, str):
+                        # Se a resposta for uma string, pode ser uma mensagem de erro
+                        if (
+                            "erro" in response_json.lower()
+                            or "error" in response_json.lower()
+                        ):
+                            erro_msg = response_json
+
+                    # Se encontrou erro, retornar como erro (não-retentável - validação)
+                    if erro_msg:
+                        return {
+                            "sucesso": False,
+                            "erro": erro_msg,
+                            "resposta": response_json,
+                            "retentavel": False,  # Erros de validação não são retentáveis
+                        }
+
+                # Se chegou aqui, é sucesso real
                 return {"sucesso": True, "resposta": response_json}
             else:
+                # Erro HTTP - verificar se é retentável
                 error_msg = f"Erro no envio: {response.status_code} - {response.text}"
-                return {"sucesso": False, "erro": error_msg}
+                retentavel = is_retentable_error(error_msg, response.status_code)
+                return {
+                    "sucesso": False,
+                    "erro": error_msg,
+                    "retentavel": retentavel,
+                    "status_code": response.status_code,
+                }
 
-        except Exception as e:
+        except requests.exceptions.Timeout as e:
+            error_msg = "Timeout na requisição (60s)"
+            drg_logger.log_error(e, "Envio de guia DRG - Timeout")
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,  # Timeout é retentável
+            }
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Erro de conexão: {str(e)}"
+            drg_logger.log_error(e, "Envio de guia DRG - Erro de conexão")
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": True,  # Erro de conexão é retentável
+            }
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Erro na requisição: {str(e)}"
             drg_logger.log_error(e, "Envio de guia DRG")
-            return {"sucesso": False, "erro": f"Erro ao enviar guia: {str(e)}"}
+            # Verificar se é retentável baseado na mensagem
+            retentavel = is_retentable_error(error_msg)
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }
+        except Exception as e:
+            error_msg = f"Erro ao enviar guia: {str(e)}"
+            drg_logger.log_error(e, "Envio de guia DRG")
+            # Verificar se é retentável baseado na mensagem
+            retentavel = is_retentable_error(error_msg)
+            return {
+                "sucesso": False,
+                "erro": error_msg,
+                "retentavel": retentavel,
+            }
 
     def verificar_status(self) -> Dict[str, Any]:
         """Verifica se a API DRG está disponível."""
@@ -335,148 +658,3 @@ class DRGService:
             }
         except Exception as e:
             return {"sucesso": False, "erro": f"Erro ao renovar token: {str(e)}"}
-
-    def enviar_put_guia_aprovada(self, guia_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Envia PUT para DRG com guia aprovada e senha de autorização.
-
-        Args:
-            guia_data: Dados da guia aprovada com senha
-
-        Returns:
-            Dict: Resultado do envio
-        """
-        try:
-            # Obter token válido
-            token_result = self.token_manager.get_valid_token()
-            if not token_result["sucesso"]:
-                return token_result
-
-            token = token_result["token"]
-
-            # Preparar JSON para PUT
-            json_put = self._montar_json_put_guia_aprovada(guia_data)
-
-            # Enviar PUT com retry
-            return self._enviar_put_com_retry(json_put, token)
-
-        except Exception as e:
-            drg_logger.error(f"Erro ao enviar PUT para DRG: {e}")
-            return {"sucesso": False, "erro": f"Erro ao enviar PUT: {str(e)}"}
-
-    def _montar_json_put_guia_aprovada(self, guia_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Monta o JSON para PUT de guia aprovada com senha.
-        """
-        settings = get_settings()
-        
-        return {
-            "loteGuias": {
-                "guia": [{
-                    "numeroGuia": guia_data.get("numero_guia"),
-                    "situacaoGuia": guia_data.get("situacao_guia", "A"),
-                    "senhaAutorizacao": guia_data.get("senha_autorizacao"),
-                    "tipoOperacao": "PUT_APROVADA",
-                    "dataAprovacao": guia_data.get("data_aprovacao"),
-                    "observacaoGuia": guia_data.get("observacao_guia"),
-                    "justificativaOperadora": guia_data.get("justificativa_operadora"),
-                    "numeroAutorizacao": guia_data.get("numero_autorizacao"),
-                    "qtdeDiariasAutorizadas": guia_data.get("qtde_diarias_autorizadas"),
-                    "tipoAcomodacaoAutorizada": guia_data.get("tipo_acomodacao_autorizada"),
-                    "cnesAutorizado": guia_data.get("cnes_autorizado"),
-                    "dataAutorizacao": guia_data.get("data_autorizacao"),
-                    # Campos do hospital
-                    "codigoContratado": settings.HOSPITAL_CODIGO_CONTRATADO,
-                    "nomeHospital": settings.HOSPITAL_NOME,
-                    "cnesHospital": settings.HOSPITAL_CNES,
-                    "porteHospital": settings.HOSPITAL_PORTE,
-                    "complexidadeHospital": settings.HOSPITAL_COMPLEXIDADE,
-                    "esferaAdministrativa": settings.HOSPITAL_ESFERA_ADMINISTRATIVA,
-                    "enderecoHospital": settings.HOSPITAL_ENDERECO,
-                }]
-            }
-        }
-
-    def _enviar_put_com_retry(self, json_put: Dict[str, Any], token: str) -> Dict[str, Any]:
-        """
-        Envia PUT com retry automático.
-        """
-        for tentativa in range(1, self.put_max_tentativas + 1):
-            try:
-                drg_logger.info(f"📡 Enviando guia aprovada para DRG (tentativa {tentativa}/{self.put_max_tentativas})")
-                
-                # Log do JSON sendo enviado
-                drg_logger.log_request("POST", self.drg_url, json_put)
-
-                # Fazer requisição POST para a mesma rota principal
-                response = requests.post(
-                    self.drg_url,
-                    json=json_put,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                        "X-API-Key": self.api_key,
-                    },
-                    timeout=self.put_timeout_ms / 1000,  # Converter para segundos
-                )
-
-                # Log da resposta
-                drg_logger.log_response(
-                    response.status_code, dict(response.headers), response.text
-                )
-
-                if response.status_code == 200:
-                    try:
-                        response_data = response.json()
-                        drg_logger.info(f"✅ Guia aprovada enviada com sucesso para DRG")
-                        return {
-                            "sucesso": True,
-                            "dados": response_data,
-                            "tentativa": tentativa,
-                        }
-                    except ValueError:
-                        drg_logger.error(
-                            f"Resposta não é JSON válido: {response.text[:200]}",
-                        )
-                        return {
-                            "sucesso": False,
-                            "erro": f"Resposta inválida: {response.text[:200]}",
-                        }
-                elif response.status_code == 401:
-                    # Token expirado, tentar renovar
-                    drg_logger.warning("Token expirado, tentando renovar...")
-                    token_result = self.token_manager.force_refresh()
-                    if token_result["sucesso"]:
-                        token = token_result["token"]
-                        continue
-                    else:
-                        return {"sucesso": False, "erro": "Falha ao renovar token"}
-                else:
-                    # Erro HTTP
-                    drg_logger.error(f"Erro HTTP {response.status_code}: {response.text}")
-                    if tentativa < self.put_max_tentativas:
-                        drg_logger.info(f"Tentando novamente em 2 segundos...")
-                        import time
-                        time.sleep(2)
-                        continue
-                    else:
-                        return {
-                            "sucesso": False,
-                            "erro": f"Erro HTTP {response.status_code}: {response.text[:200]}",
-                        }
-
-            except requests.exceptions.Timeout:
-                drg_logger.error(f"Timeout na tentativa {tentativa}")
-                if tentativa < self.put_max_tentativas:
-                    continue
-                else:
-                    return {"sucesso": False, "erro": "Timeout após todas as tentativas"}
-
-            except requests.exceptions.RequestException as e:
-                drg_logger.error(f"Erro de requisição na tentativa {tentativa}: {e}")
-                if tentativa < self.put_max_tentativas:
-                    continue
-                else:
-                    return {"sucesso": False, "erro": f"Erro de requisição: {str(e)}"}
-
-        return {"sucesso": False, "erro": "Falha após todas as tentativas"}

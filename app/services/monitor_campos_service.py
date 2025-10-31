@@ -307,16 +307,19 @@ class MonitorCamposService:
         self, db: Session, guia: Guia, campos_mudados: List[str]
     ) -> Dict[str, Any]:
         """
-        Envia PUT para DRG com os campos alterados
+        Envia POST para DRG com JSON completo da guia (mesma rota do envio inicial).
+        Nota: Apesar do nome do método, agora sempre usa POST com JSON completo.
         """
         try:
-            self.logger.info(f"📡 Enviando PUT para DRG - Guia {guia.numero_guia}")
+            self.logger.info(
+                f"📡 Enviando atualização para DRG - Guia {guia.numero_guia}"
+            )
 
-            # Montar JSON com campos alterados
-            json_put = self._montar_json_put(guia, campos_mudados)
+            # Montar JSON completo da guia
+            json_completo = self.guia_service.montar_json_drg(guia)
 
-            # Enviar para DRG
-            resultado = self.drg_service.enviar_guia(json_put)
+            # Enviar JSON completo para DRG usando POST (mesma rota)
+            resultado = self.drg_service.enviar_guia(json_completo)
 
             if resultado["sucesso"]:
                 # Atualizar status da guia
@@ -328,30 +331,42 @@ class MonitorCamposService:
                 db.commit()
 
                 self.logger.info(
-                    f"✅ PUT enviado com sucesso para guia {guia.numero_guia}"
+                    f"✅ Atualização enviada com sucesso para guia {guia.numero_guia}"
                 )
-                return {"sucesso": True, "motivo": "PUT enviado com sucesso"}
+                return {"sucesso": True, "motivo": "Atualização enviada com sucesso"}
             else:
-                # Marcar erro
-                guia.tp_status = "E"  # Erro
-                guia.mensagem_erro = resultado["erro"]
+                # Erro - verificar se é retentável
+                erro_msg = resultado.get("erro", "Erro desconhecido")
+                retentavel = resultado.get("retentavel", False)
+
+                if retentavel:
+                    # Erro retentável (500, timeout, conexão) - manter status atual
+                    # O status_monitoramento já é "M", então continuará sendo monitorado
+                    guia.mensagem_erro = erro_msg
+                    self.logger.warning(
+                        f"⚠️ Erro retentável ao enviar atualização para guia {guia.numero_guia} (será reenviado): {erro_msg}"
+                    )
+                else:
+                    # Erro não-retentável (validação) - marcar como erro
+                    guia.tp_status = "E"  # Erro
+                    guia.mensagem_erro = erro_msg
+                    self.logger.error(
+                        f"❌ Erro ao enviar atualização para guia {guia.numero_guia}: {erro_msg}"
+                    )
 
                 db.commit()
-
-                self.logger.error(
-                    f"❌ Erro ao enviar PUT para guia {guia.numero_guia}: {resultado['erro']}"
-                )
-                return {"sucesso": False, "motivo": f"Erro: {resultado['erro']}"}
+                return {"sucesso": False, "motivo": f"Erro: {erro_msg}"}
 
         except Exception as e:
-            self.logger.error(f"❌ Erro ao enviar PUT para DRG: {e}")
+            self.logger.error(f"❌ Erro ao enviar atualização para DRG: {e}")
             return {"sucesso": False, "motivo": f"Erro interno: {str(e)}"}
 
     async def _enviar_put_guia_aprovada(
         self, db: Session, guia: Guia
     ) -> Dict[str, Any]:
         """
-        Envia PUT específico para guia aprovada com senha de autorização
+        Envia POST para DRG com JSON completo da guia aprovada (mesma rota do envio inicial).
+        Nota: Apesar do nome do método, agora sempre usa POST com JSON completo.
         """
         try:
             self.logger.info(
@@ -361,15 +376,8 @@ class MonitorCamposService:
             # Montar JSON completo da guia usando o método existente
             json_completo = self.guia_service.montar_json_drg(guia)
 
-            # Adicionar tipo de operação para identificar que é guia aprovada
-            if "loteGuias" in json_completo and "guia" in json_completo["loteGuias"]:
-                for guia_item in json_completo["loteGuias"]["guia"]:
-                    guia_item["tipoOperacao"] = "PUT_APROVADA"
-                    # Garantir que a senha de autorização está incluída
-                    if guia.senha_autorizacao:
-                        guia_item["senhaAutorizacao"] = guia.senha_autorizacao
-
-            # Enviar JSON completo para DRG usando o método existente
+            # O JSON já está completo com todos os campos, incluindo senha_autorizacao
+            # Enviar JSON completo para DRG usando POST (mesma rota)
             resultado = self.drg_service.enviar_guia(json_completo)
 
             if resultado["sucesso"]:
@@ -389,33 +397,31 @@ class MonitorCamposService:
                     "motivo": "Guia aprovada completa enviada com sucesso",
                 }
             else:
-                # Marcar erro
-                guia.tp_status = "E"  # Erro
-                guia.mensagem_erro = resultado["erro"]
+                # Erro - verificar se é retentável
+                erro_msg = resultado.get("erro", "Erro desconhecido")
+                retentavel = resultado.get("retentavel", False)
+
+                if retentavel:
+                    # Erro retentável (500, timeout, conexão) - manter status atual
+                    # O status_monitoramento já é "M", então continuará sendo monitorado
+                    guia.mensagem_erro = erro_msg
+                    self.logger.warning(
+                        f"⚠️ Erro retentável ao enviar guia aprovada {guia.numero_guia} (será reenviado): {erro_msg}"
+                    )
+                else:
+                    # Erro não-retentável (validação) - marcar como erro
+                    guia.tp_status = "E"  # Erro
+                    guia.mensagem_erro = erro_msg
+                    self.logger.error(
+                        f"❌ Erro ao enviar guia aprovada {guia.numero_guia}: {erro_msg}"
+                    )
 
                 db.commit()
-
-                self.logger.error(
-                    f"❌ Erro ao enviar guia aprovada completa {guia.numero_guia}: {resultado['erro']}"
-                )
-                return {"sucesso": False, "motivo": f"Erro: {resultado['erro']}"}
+                return {"sucesso": False, "motivo": f"Erro: {erro_msg}"}
 
         except Exception as e:
             self.logger.error(f"❌ Erro ao enviar guia aprovada completa: {e}")
             return {"sucesso": False, "motivo": f"Erro interno: {str(e)}"}
-
-    def _montar_json_put(self, guia: Guia, campos_mudados: List[str]) -> Dict[str, Any]:
-        """
-        Monta JSON para PUT no DRG com campos alterados
-        """
-        # Usar o serviço existente para montar JSON base
-        json_base = self.guia_service.montar_json_drg(guia)
-
-        # Adicionar flag indicando que é uma atualização
-        json_base["loteGuias"]["guia"][0]["tipo_operacao"] = "PUT"
-        json_base["loteGuias"]["guia"][0]["campos_alterados"] = campos_mudados
-
-        return json_base
 
     async def iniciar_monitoramento_continuo(self):
         """
