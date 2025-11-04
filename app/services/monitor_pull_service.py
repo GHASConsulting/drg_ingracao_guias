@@ -132,51 +132,52 @@ class MonitorPullService:
 
     async def _processar_atualizacoes_pull(self):
         """Processa atualizações buscadas da API PULL"""
+        session = None
         try:
             session = get_session()
+            self.logger.info("🔍 Buscando atualizações da DRG via PULL...")
 
-            try:
-                self.logger.info("🔍 Buscando atualizações da DRG via PULL...")
-
-                # Buscar guias monitoradas que foram enviadas recentemente
-                # Considerar guias enviadas nas últimas 24 horas
-                data_limite = datetime.utcnow() - timedelta(hours=24)
-                
-                guias_enviadas = (
-                    session.query(Guia)
-                    .filter(
-                        Guia.data_envio_drg.isnot(None),
-                        Guia.data_envio_drg >= data_limite,
-                        Guia.numero_guia.isnot(None)
-                    )
-                    .all()
+            # Buscar guias monitoradas que foram enviadas recentemente
+            # Considerar guias enviadas nas últimas 24 horas
+            # Usar tp_status='T' (Transmitido) para guias enviadas com sucesso
+            data_limite = datetime.utcnow() - timedelta(hours=24)
+            
+            guias_enviadas = (
+                session.query(Guia)
+                .filter(
+                    Guia.tp_status == 'T',  # Status 'T' = Transmitido (enviado com sucesso)
+                    Guia.data_processamento.isnot(None),
+                    Guia.data_processamento >= data_limite,
+                    Guia.numero_guia.isnot(None)
                 )
+                .all()
+            )
 
-                if not guias_enviadas:
-                    self.logger.info("📭 Nenhuma guia enviada recentemente encontrada")
-                    return
+            if not guias_enviadas:
+                self.logger.info("📭 Nenhuma guia enviada recentemente encontrada")
+                return
 
-                self.logger.info(f"📋 Processando {len(guias_enviadas)} guias enviadas...")
+            self.logger.info(f"📋 Processando {len(guias_enviadas)} guias enviadas...")
 
-                # Agrupar guias em lotes
-                lotes = self._agrupar_em_lotes(guias_enviadas, self.settings.MONITOR_PULL_MAX_PAGE_SIZE)
+            # Agrupar guias em lotes
+            lotes = self._agrupar_em_lotes(guias_enviadas, self.settings.MONITOR_PULL_MAX_PAGE_SIZE)
 
-                for i, lote in enumerate(lotes, 1):
-                    self.logger.info(f"📦 Processando lote {i}/{len(lotes)} ({len(lote)} guias)...")
-                    
-                    # Buscar atualizações para este lote
-                    await self._buscar_atualizacoes_lote(lote)
+            for i, lote in enumerate(lotes, 1):
+                self.logger.info(f"📦 Processando lote {i}/{len(lotes)} ({len(lote)} guias)...")
+                
+                # Buscar atualizações para este lote
+                await self._buscar_atualizacoes_lote(lote)
 
-                    # Pequena pausa entre lotes para não sobrecarregar a API
-                    await asyncio.sleep(1)
+                # Pequena pausa entre lotes para não sobrecarregar a API
+                await asyncio.sleep(1)
 
-                self.logger.info("✅ Processamento PULL concluído")
-
-            finally:
-                session.close()
+            self.logger.info("✅ Processamento PULL concluído")
 
         except Exception as e:
             self.logger.error(f"❌ Erro ao processar atualizações PULL: {e}", exc_info=True)
+        finally:
+            if session:
+                session.close()
 
     def _agrupar_em_lotes(self, guias: List[Guia], tamanho_lote: int) -> List[List[Guia]]:
         """
@@ -234,61 +235,65 @@ class MonitorPullService:
             resposta: Resposta da API DRG (formato completo da guia)
             guias: Lista de guias esperadas
         """
+        session = None
         try:
             session = get_session()
+            
+            # A estrutura da resposta pode variar
+            # Assumindo que retorna uma lista de guias ou um objeto com 'guia'
+            guias_resposta = []
+            
+            if isinstance(resposta, list):
+                guias_resposta = resposta
+            elif isinstance(resposta, dict):
+                # Tentar diferentes formatos
+                if "guia" in resposta:
+                    guias_resposta = resposta["guia"] if isinstance(resposta["guia"], list) else [resposta["guia"]]
+                elif "guias" in resposta:
+                    guias_resposta = resposta["guias"] if isinstance(resposta["guias"], list) else [resposta["guias"]]
+                elif "data" in resposta:
+                    guias_resposta = resposta["data"] if isinstance(resposta["data"], list) else [resposta["data"]]
+                elif "items" in resposta:  # Formato comum de paginação
+                    guias_resposta = resposta["items"] if isinstance(resposta["items"], list) else [resposta["items"]]
 
-            try:
-                # A estrutura da resposta pode variar
-                # Assumindo que retorna uma lista de guias ou um objeto com 'guia'
-                guias_resposta = []
-                
-                if isinstance(resposta, list):
-                    guias_resposta = resposta
-                elif isinstance(resposta, dict):
-                    # Tentar diferentes formatos
-                    if "guia" in resposta:
-                        guias_resposta = resposta["guia"] if isinstance(resposta["guia"], list) else [resposta["guia"]]
-                    elif "guias" in resposta:
-                        guias_resposta = resposta["guias"] if isinstance(resposta["guias"], list) else [resposta["guias"]]
-                    elif "data" in resposta:
-                        guias_resposta = resposta["data"] if isinstance(resposta["data"], list) else [resposta["data"]]
+            if not guias_resposta:
+                self.logger.warning("⚠️ Nenhuma guia encontrada na resposta")
+                return
 
-                if not guias_resposta:
-                    self.logger.warning("⚠️ Nenhuma guia encontrada na resposta")
-                    return
+            self.logger.info(f"📝 Processando {len(guias_resposta)} guias da resposta...")
 
-                self.logger.info(f"📝 Processando {len(guias_resposta)} guias da resposta...")
+            # Processar cada guia da resposta
+            for guia_data in guias_resposta:
+                if not isinstance(guia_data, dict):
+                    continue
 
-                # Processar cada guia da resposta
-                for guia_data in guias_resposta:
-                    if not isinstance(guia_data, dict):
-                        continue
+                numero_guia = guia_data.get("numeroGuia")
+                if not numero_guia:
+                    continue
 
-                    numero_guia = guia_data.get("numeroGuia")
-                    if not numero_guia:
-                        continue
+                # Buscar guia local
+                guia_local = session.query(Guia).filter(
+                    Guia.numero_guia == numero_guia
+                ).first()
 
-                    # Buscar guia local
-                    guia_local = session.query(Guia).filter(
-                        Guia.numero_guia == numero_guia
-                    ).first()
+                if not guia_local:
+                    self.logger.warning(f"⚠️ Guia {numero_guia} não encontrada localmente")
+                    continue
 
-                    if not guia_local:
-                        self.logger.warning(f"⚠️ Guia {numero_guia} não encontrada localmente")
-                        continue
+                # Atualizar guia local com dados da DRG
+                self._atualizar_guia_com_dados_drg(guia_local, guia_data)
 
-                    # Atualizar guia local com dados da DRG
-                    self._atualizar_guia_com_dados_drg(guia_local, guia_data)
-
-                # Commit das atualizações
-                session.commit()
-                self.logger.info("✅ Atualizações salvas com sucesso")
-
-            finally:
-                session.close()
+            # Commit das atualizações
+            session.commit()
+            self.logger.info("✅ Atualizações salvas com sucesso")
 
         except Exception as e:
             self.logger.error(f"❌ Erro ao processar resposta PULL: {e}", exc_info=True)
+            if session:
+                session.rollback()
+        finally:
+            if session:
+                session.close()
 
     def _atualizar_guia_com_dados_drg(self, guia_local: Guia, guia_drg: Dict[str, Any]):
         """
@@ -302,17 +307,16 @@ class MonitorPullService:
             atualizacoes = []
 
             # Campos que podem ser atualizados do PULL
+            # Mapeamento: campo_drg -> campo_local
             campos_para_atualizar = {
-                "situacao_guia": guia_drg.get("situacao"),
-                "senha_autorizacao": guia_drg.get("senhaAutorizacao"),
-                "numero_autorizacao": guia_drg.get("numeroAutorizacao"),
+                "situacao_guia": guia_drg.get("situacaoGuia") or guia_drg.get("situacao"),
+                "senha_autorizacao": guia_drg.get("senhaAutorizacao") or guia_drg.get("senha"),
                 "qtde_diarias_autorizadas": guia_drg.get("qtdeDiariasAutorizadas"),
                 "tipo_acomodacao_autorizada": guia_drg.get("tipoAcomodacaoAutorizada"),
                 "cnes_autorizado": guia_drg.get("cnesAutorizado"),
                 "data_autorizacao": self._parse_date(guia_drg.get("dataAutorizacao")),
                 "observacao_guia": guia_drg.get("observacaoGuia"),
                 "justificativa_operadora": guia_drg.get("justificativaOperadora"),
-                "mensagem_erro": guia_drg.get("mensagemErro"),
             }
 
             # Atualizar campos
