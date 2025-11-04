@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Script para verificar se as tabelas foram criadas corretamente no banco de dados Oracle
+verificar se as tabelas foram criadas corretamente no banco de dados Oracle
 """
 
 import sys
