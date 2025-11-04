@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 echo "======================================================="
-echo "  INICIANDO DRG-GUIAS (PRODUCAO)"
+echo "  INICIANDO DRG-GUIAS (DESENVOLVIMENTO)"
 echo "======================================================="
 
 # Verifica se existe arquivo .env
@@ -69,19 +69,16 @@ echo "Python: $(python --version)"
 echo "Ambiente virtual: $(which python)"
 echo
 
-# Teste de conexão Oracle
+# Teste opcional de conexão Oracle (modo desenvolvimento)
 echo "Testando conexao Oracle..."
-python -c "import cx_Oracle; cx_Oracle.connect('inovemed/inov3m3d@drg@192.168.200.250:1521/trnmv'); print('✅ Conexao OK!')"
+python -c "import cx_Oracle; cx_Oracle.connect('inovemed/inov3m3d@drg@192.168.200.250:1521/trnmv'); print('✅ Conexao OK!')" 2>/dev/null
 if [ $? -ne 0 ]; then
-  echo "❌ Falha na conexao com o Oracle!"
-  echo "Verifique:"
-  echo "  - Oracle Instant Client instalado em /c/instantclient_21_13"
-  echo "  - Credenciais corretas no arquivo .env"
-  echo "  - Servidor Oracle acessivel"
-  exit 1
+  echo "⚠️  Aviso: Nao foi possivel testar conexao Oracle"
+  echo "A aplicacao sera iniciada mesmo assim (modo desenvolvimento)"
 fi
 
 echo
-echo "🚀 Iniciando aplicacao FastAPI (modo producao)..."
+echo "🚀 Iniciando aplicacao FastAPI (modo desenvolvimento)..."
 echo "======================================================="
 python main.py
+
