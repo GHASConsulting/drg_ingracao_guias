@@ -7,7 +7,7 @@ verificar se as tabelas foram criadas corretamente no banco de dados Oracle
 import sys
 import os
 from sqlalchemy import inspect, text
-from app.database.database import init_db, engine, SessionLocal
+from app.database.database import init_db, SessionLocal
 from app.models import Guia, Anexo, Procedimento, Diagnostico
 from app.config.config import get_settings
 
@@ -58,13 +58,23 @@ def verificar_tabelas():
         print("   - Servidor Oracle está acessível")
         raise
 
+    # Importar engine novamente após init_db() para obter referência atualizada
+    import app.database.database as db_module
+
+    engine = db_module.engine
+
     # Verificar se engine foi inicializado
     if engine is None:
         print("❌ Erro: Engine do banco não foi inicializado!")
+        print("   Verifique se init_db() foi executado corretamente.")
         return False
 
     # Verificar tabelas usando inspector
-    inspector = inspect(engine)
+    try:
+        inspector = inspect(engine)
+    except Exception as e:
+        print(f"❌ Erro ao criar inspector: {e}")
+        return False
     tabelas_existentes = inspector.get_table_names()
 
     print("=" * 60)
