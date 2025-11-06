@@ -11,12 +11,6 @@ if not exist ".env" (
     exit /b 1
 )
 
-:: Cria diretório logs se não existir
-if not exist "logs" (
-    echo 📁 Criando diretorio logs...
-    mkdir logs
-)
-
 :: Verifica se Docker está instalado e rodando
 docker --version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
@@ -79,33 +73,58 @@ echo 🐳 Parando containers existentes (se houver)...
 %DOCKER_COMPOSE_CMD% --profile production down
 
 echo.
-echo 🐳 Construindo e iniciando container Docker...
+echo 💡 Tentando iniciar com volumes nomeados (sem compartilhamento de diretorio)...
+echo    Se falhar, tentaremos sem volumes...
+echo.
+
+:: Tenta primeiro com docker-compose.yml normal (volumes nomeados)
 %DOCKER_COMPOSE_CMD% --profile production up --build -d
 
 if %ERRORLEVEL% neq 0 (
     echo.
-    echo ❌ Erro ao iniciar Docker!
+    echo ⚠️  Falha com volumes nomeados. Tentando sem volumes...
+    echo    (Logs ficarao apenas dentro do container)
     echo.
-    echo 💡 Possiveis solucoes:
+    
+    :: Tenta sem volumes
+    %DOCKER_COMPOSE_CMD% -f docker-compose.sem-volumes.yml --profile production up --build -d
+    
+    if %ERRORLEVEL% neq 0 (
+        echo.
+        echo ❌ Erro ao iniciar Docker!
+        echo.
+        echo 💡 Possiveis solucoes:
+        echo.
+        echo    1. Verifique os logs: docker-compose logs
+        echo    2. Tente executar como Administrador
+        echo    3. Verifique se o arquivo .env existe e esta correto
+        echo.
+        pause
+        exit /b 1
+    ) else (
+        echo ✅ Container iniciado SEM volumes (logs apenas no container)
+        echo.
+        echo 📋 Para ver logs, use:
+        echo    docker logs drg-api
+        echo    OU
+        echo    docker exec drg-api cat /app/logs/drg_guias.log
+        echo    OU copie para sua maquina:
+        echo    copiar_logs_docker.bat
+        echo.
+        goto :docker_success
+    )
+) else (
+    echo ✅ Container iniciado com volumes nomeados
     echo.
-    echo    1. COMPARTILHAMENTO DE DIRETORIO:
-    echo       - Abra o Docker Desktop
-    echo       - Vá em Settings ^> Resources ^> File Sharing
-    echo       - Adicione o diretorio: C:\DRG-INOVEMED
-    echo       - Ou aceite o prompt que aparecer quando tentar iniciar
+    echo 📋 Para copiar logs do container para sua maquina:
+    echo    copiar_logs_docker.bat
     echo.
-    echo    2. Verifique se o diretorio logs existe e tem permissao
-    echo.
-    echo    3. Tente executar como Administrador
-    echo.
-    pause
-    exit /b 1
+    goto :docker_success
 )
 
+:docker_success
 echo.
-echo ✅ Container iniciado com sucesso!
-echo.
-echo 📊 Para ver os logs, execute:
+echo 📊 Para ver os logs em tempo real, execute:
 echo    %DOCKER_COMPOSE_CMD% --profile production logs -f drg-api
 echo.
 echo 🛑 Para parar o container, execute:
@@ -120,4 +139,3 @@ timeout /t 3 /nobreak >nul
 %DOCKER_COMPOSE_CMD% --profile production logs --tail=20 drg-api
 
 pause
-

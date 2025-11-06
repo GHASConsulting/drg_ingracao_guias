@@ -82,33 +82,50 @@ echo "🐳 Parando containers existentes (se houver)..."
 $DOCKER_COMPOSE_CMD --profile production down
 
 echo
-echo "🐳 Construindo e iniciando container Docker..."
+echo "💡 Tentando iniciar com volumes nomeados (sem compartilhamento de diretorio)..."
+echo "   Se falhar, tentaremos sem volumes..."
+echo
+
+# Tenta primeiro com docker-compose.yml normal (volumes nomeados)
 $DOCKER_COMPOSE_CMD --profile production up --build -d
 
 if [ $? -ne 0 ]; then
   echo
-  echo "❌ Erro ao iniciar Docker!"
+  echo "⚠️  Falha com volumes nomeados. Tentando sem volumes..."
+  echo "   (Logs ficarao apenas dentro do container)"
   echo
-  echo "💡 Possiveis solucoes:"
+  
+  # Tenta sem volumes
+  $DOCKER_COMPOSE_CMD -f docker-compose.sem-volumes.yml --profile production up --build -d
+  
+  if [ $? -ne 0 ]; then
+    echo
+    echo "❌ Erro ao iniciar Docker!"
+    echo
+    echo "💡 Verifique os logs:"
+    echo "   $DOCKER_COMPOSE_CMD logs"
+    exit 1
+  else
+    echo "✅ Container iniciado SEM volumes (logs apenas no container)"
+    echo
+    echo "📋 Para ver logs, use:"
+    echo "   docker logs drg-api"
+    echo "   OU"
+    echo "   docker exec drg-api cat /app/logs/drg_guias.log"
+    echo "   OU copie para sua maquina:"
+    echo "   ./copiar_logs_docker.sh"
+    echo
+  fi
+else
+  echo "✅ Container iniciado com volumes nomeados"
   echo
-  echo "   1. COMPARTILHAMENTO DE DIRETORIO (Windows):"
-  echo "      - Abra o Docker Desktop"
-  echo "      - Vá em Settings > Resources > File Sharing"
-  echo "      - Adicione o diretorio: C:\\DRG-INOVEMED"
-  echo "      - Ou aceite o prompt que aparecer"
+  echo "📋 Para copiar logs do container para sua maquina:"
+  echo "   ./copiar_logs_docker.sh"
   echo
-  echo "   2. Verifique se o diretorio logs existe e tem permissao"
-  echo
-  echo "   3. No Linux, verifique permissoes do diretorio:"
-  echo "      sudo chown -R \$USER:\$USER logs/"
-  echo
-  exit 1
 fi
 
 echo
-echo "✅ Container iniciado com sucesso!"
-echo
-echo "📊 Para ver os logs, execute:"
+echo "📊 Para ver os logs em tempo real, execute:"
 echo "   $DOCKER_COMPOSE_CMD --profile production logs -f drg-api"
 echo
 echo "🛑 Para parar o container, execute:"

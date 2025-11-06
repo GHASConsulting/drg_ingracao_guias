@@ -1,21 +1,21 @@
 services:
-  # Aplicação FastAPI
+  # Aplicação FastAPI - SEM volumes (logs apenas dentro do container)
+  # Esta versão NÃO precisa de compartilhamento de diretório
   drg-api:
     build: .
     container_name: drg-api
     ports:
       - "${PORT:-8001}:8000"
-    volumes:
-      # Usar volume nomeado para logs (não precisa de compartilhamento de diretório)
-      - drg_logs:/app/logs
-      # .env como bind mount com :ro (read-only) - mais simples de compartilhar
-      # Se der erro, o env_file já carrega as variáveis, então pode remover esta linha
-      - ./.env:/app/.env:ro
+    # Sem volumes - logs ficam apenas dentro do container
+    # Para ver logs: docker exec drg-api cat /app/logs/drg_guias.log
+    # Ou: docker logs drg-api
+    # Ou copie: copiar_logs_docker.bat
     env_file:
       - .env
     environment:
       - ORACLE_DIR=/opt/oracle/instantclient_21_17
       - LD_LIBRARY_PATH=/opt/oracle/instantclient_21_17:$LD_LIBRARY_PATH
+      # Variáveis do .env serão lidas via env_file (não precisa montar arquivo)
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
@@ -26,7 +26,3 @@ services:
     profiles:
       - production
 
-# Volumes nomeados (não precisam de compartilhamento de diretório)
-volumes:
-  drg_logs:
-    driver: local
