@@ -10,6 +10,12 @@ if [ ! -f ".env" ]; then
   exit 1
 fi
 
+# Cria diretório logs se não existir
+if [ ! -d "logs" ]; then
+  echo "📁 Criando diretorio logs..."
+  mkdir -p logs
+fi
+
 # Verifica se Docker está instalado
 if ! command -v docker &> /dev/null; then
   echo "❌ Docker nao encontrado!"
@@ -80,7 +86,22 @@ echo "🐳 Construindo e iniciando container Docker..."
 $DOCKER_COMPOSE_CMD --profile production up --build -d
 
 if [ $? -ne 0 ]; then
+  echo
   echo "❌ Erro ao iniciar Docker!"
+  echo
+  echo "💡 Possiveis solucoes:"
+  echo
+  echo "   1. COMPARTILHAMENTO DE DIRETORIO (Windows):"
+  echo "      - Abra o Docker Desktop"
+  echo "      - Vá em Settings > Resources > File Sharing"
+  echo "      - Adicione o diretorio: C:\\DRG-INOVEMED"
+  echo "      - Ou aceite o prompt que aparecer"
+  echo
+  echo "   2. Verifique se o diretorio logs existe e tem permissao"
+  echo
+  echo "   3. No Linux, verifique permissoes do diretorio:"
+  echo "      sudo chown -R \$USER:\$USER logs/"
+  echo
   exit 1
 fi
 

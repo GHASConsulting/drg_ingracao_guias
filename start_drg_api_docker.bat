@@ -11,6 +11,12 @@ if not exist ".env" (
     exit /b 1
 )
 
+:: Cria diretório logs se não existir
+if not exist "logs" (
+    echo 📁 Criando diretorio logs...
+    mkdir logs
+)
+
 :: Verifica se Docker está instalado e rodando
 docker --version >nul 2>&1
 if %ERRORLEVEL% neq 0 (
@@ -77,7 +83,21 @@ echo 🐳 Construindo e iniciando container Docker...
 %DOCKER_COMPOSE_CMD% --profile production up --build -d
 
 if %ERRORLEVEL% neq 0 (
+    echo.
     echo ❌ Erro ao iniciar Docker!
+    echo.
+    echo 💡 Possiveis solucoes:
+    echo.
+    echo    1. COMPARTILHAMENTO DE DIRETORIO:
+    echo       - Abra o Docker Desktop
+    echo       - Vá em Settings ^> Resources ^> File Sharing
+    echo       - Adicione o diretorio: C:\DRG-INOVEMED
+    echo       - Ou aceite o prompt que aparecer quando tentar iniciar
+    echo.
+    echo    2. Verifique se o diretorio logs existe e tem permissao
+    echo.
+    echo    3. Tente executar como Administrador
+    echo.
     pause
     exit /b 1
 )
