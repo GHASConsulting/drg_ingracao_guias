@@ -58,15 +58,21 @@ def verificar_tabelas():
         print("   - Servidor Oracle está acessível")
         raise
 
-    # Importar engine novamente após init_db() para obter referência atualizada
+    # Importar engine e SessionLocal novamente após init_db() para obter referências atualizadas
     import app.database.database as db_module
 
     engine = db_module.engine
+    SessionLocal = db_module.SessionLocal
 
     # Verificar se engine foi inicializado
     if engine is None:
         print("❌ Erro: Engine do banco não foi inicializado!")
         print("   Verifique se init_db() foi executado corretamente.")
+        return False
+
+    # Verificar se SessionLocal foi inicializado
+    if SessionLocal is None:
+        print("❌ Erro: SessionLocal não foi inicializado!")
         return False
 
     # Verificar tabelas usando inspector

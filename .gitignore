@@ -130,6 +130,7 @@ migrar_consulta_externa.py
 IMPLEMENTACAO_COMPLETA.md
 GUIA_COMPLEMENTAR.md
 IMPLANTACAO_CLIENTE.md
+VERIFICACAO_DOCKER.md
 
 # Compressed files in docs
 *.zip
