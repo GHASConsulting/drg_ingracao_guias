@@ -298,7 +298,7 @@ class MonitorCamposService:
             return True
 
         # Finalizar se já foi consultada muitas vezes
-        if guia.tentativas >= 5:
+        if (guia.tentativas or 0) >= 5:
             return True
 
         return False
@@ -324,7 +324,7 @@ class MonitorCamposService:
             if resultado["sucesso"]:
                 # Atualizar status da guia
                 guia.tp_status = "T"  # Transmitida
-                guia.tentativas += 1
+                guia.tentativas = (guia.tentativas or 0) + 1
                 guia.data_processamento = datetime.utcnow()
                 guia.mensagem_erro = None
 
@@ -383,7 +383,7 @@ class MonitorCamposService:
             if resultado["sucesso"]:
                 # Atualizar status da guia
                 guia.tp_status = "T"  # Transmitida
-                guia.tentativas += 1
+                guia.tentativas = (guia.tentativas or 0) + 1
                 guia.data_processamento = datetime.utcnow()
                 guia.mensagem_erro = None
 

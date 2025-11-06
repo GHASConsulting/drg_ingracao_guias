@@ -223,12 +223,12 @@ async def processar_guia(
             )
 
         # Verificar tentativas
-        if guia.tentativas >= 2:
+        if (guia.tentativas or 0) >= 2:
             raise HTTPException(status_code=400, detail="Máximo de tentativas excedido")
 
         # Atualizar status para processando
         guia.tp_status = "P"  # Processando
-        guia.tentativas += 1
+        guia.tentativas = (guia.tentativas or 0) + 1
         guia.data_processamento = datetime.utcnow()
 
         db.commit()

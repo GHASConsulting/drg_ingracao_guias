@@ -108,7 +108,7 @@ class MonitorService:
                     guias_pendentes = (
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
-                        .filter(Guia.tentativas == 0)  # Só primeira tentativa
+                        .filter((Guia.tentativas == 0) | (Guia.tentativas.is_(None)))  # Só primeira tentativa
                         .limit(10)
                         .all()
                     )
@@ -139,10 +139,11 @@ class MonitorService:
             for guia in guias:
                 guia.tp_status = "P"
                 if self.auto_reprocess:
-                    guia.tentativas += 1
+                    # Garantir que tentativas não seja None
+                    guia.tentativas = (guia.tentativas or 0) + 1
                 else:
                     # Sem incremento de tentativas quando reprocessamento está desabilitado
-                    if guia.tentativas == 0:
+                    if guia.tentativas is None or guia.tentativas == 0:
                         guia.tentativas = 1
                 guia.data_processamento = datetime.utcnow()
 
@@ -210,10 +211,11 @@ class MonitorService:
                 
                 guia.mensagem_erro = error_msg
                 if self.auto_reprocess:
-                    guia.tentativas += 1
+                    # Garantir que tentativas não seja None
+                    guia.tentativas = (guia.tentativas or 0) + 1
                 else:
                     # Sem incremento de tentativas quando reprocessamento está desabilitado
-                    if guia.tentativas == 0:
+                    if guia.tentativas is None or guia.tentativas == 0:
                         guia.tentativas = 1
                 guia.data_processamento = datetime.utcnow()
 
@@ -232,10 +234,11 @@ class MonitorService:
             # Marcar como processando
             guia.tp_status = "P"
             if self.auto_reprocess:
-                guia.tentativas += 1
+                # Garantir que tentativas não seja None
+                guia.tentativas = (guia.tentativas or 0) + 1
             else:
                 # Sem incremento de tentativas quando reprocessamento está desabilitado
-                if guia.tentativas == 0:
+                if guia.tentativas is None or guia.tentativas == 0:
                     guia.tentativas = 1
             guia.data_processamento = datetime.utcnow()
             session.commit()
@@ -298,10 +301,11 @@ class MonitorService:
             
             guia.mensagem_erro = error_msg
             if self.auto_reprocess:
-                guia.tentativas += 1
+                # Garantir que tentativas não seja None
+                guia.tentativas = (guia.tentativas or 0) + 1
             else:
                 # Sem incremento de tentativas quando reprocessamento está desabilitado
-                if guia.tentativas == 0:
+                if guia.tentativas is None or guia.tentativas == 0:
                     guia.tentativas = 1
             guia.data_processamento = datetime.utcnow()
             session.commit()
