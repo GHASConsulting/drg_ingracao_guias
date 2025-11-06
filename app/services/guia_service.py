@@ -65,8 +65,8 @@ class GuiaService:
                         "tipoInternacao": guia.tipo_internacao,
                         "regimeInternacao": guia.regime_internacao,
                         "diariasSolicitadas": str(guia.diarias_solicitadas),
-                        "previsaoUsoOpme": guia.previsao_uso_opme,
-                        "previsaoUsoQuimioterapico": guia.previsao_uso_quimioterapico,
+                        "previsaoUsoOpme": guia.previsao_uso_opme or "N",
+                        "previsaoUsoQuimioterapico": guia.previsao_uso_quimioterapico or "N",
                         "indicacaoClinica": guia.indicacao_clinica,
                         "indicacaoAcidente": guia.indicacao_acidente,
                         "tipoAcomodacaoSolicitada": guia.tipo_acomodacao_solicitada,
@@ -129,15 +129,16 @@ class GuiaService:
 
         return [
             {
-                "numeroLoteDocumento": anexo.numero_lote_documento,
-                "numeroProtocoloDocumento": anexo.numero_protocolo_documento,
+                "numeroLoteDocumento": anexo.numero_lote_documento or "",
+                "numeroProtocoloDocumento": anexo.numero_protocolo_documento or "",
                 "formatoDocumento": anexo.formato_documento,
-                "sequencialDocumento": anexo.sequencial_documento,
+                "sequencialDocumento": str(anexo.sequencial_documento) if anexo.sequencial_documento else "1",
                 "dataCriacao": self._format_date(anexo.data_criacao),
                 "nome": anexo.nome,
                 "urlDocumento": anexo.url_documento,
-                "observacaoDocumento": anexo.observacao_documento,
+                "observacaoDocumento": anexo.observacao_documento or "",
                 "tipoDocumento": anexo.tipo_documento,
+                "conteudoBase64": "",  # Campo obrigatório - vazio se não houver conteúdo
             }
             for anexo in anexos
         ]
