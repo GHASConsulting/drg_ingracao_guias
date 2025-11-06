@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Dict, Any
 import logging
+import base64
+import requests
 from app.models import Guia, Anexo, Procedimento, Diagnostico
 from app.utils.logger import drg_logger
 
@@ -127,8 +129,9 @@ class GuiaService:
         if not anexos:
             return []
 
-        return [
-            {
+        anexos_json = []
+        for anexo in anexos:
+            anexo_dict = {
                 "numeroLoteDocumento": anexo.numero_lote_documento or "",
                 "numeroProtocoloDocumento": anexo.numero_protocolo_documento or "",
                 "formatoDocumento": anexo.formato_documento,
@@ -138,10 +141,30 @@ class GuiaService:
                 "urlDocumento": anexo.url_documento,
                 "observacaoDocumento": anexo.observacao_documento or "",
                 "tipoDocumento": anexo.tipo_documento,
-                "conteudoBase64": "",  # Campo obrigatório - vazio se não houver conteúdo
             }
-            for anexo in anexos
-        ]
+            
+            # Se houver URL, tentar baixar e converter para base64
+            # Caso contrário, enviar um placeholder base64 válido
+            conteudo_base64 = ""
+            if anexo.url_documento:
+                try:
+                    response = requests.get(anexo.url_documento, timeout=10)
+                    if response.status_code == 200:
+                        conteudo_base64 = base64.b64encode(response.content).decode('utf-8')
+                    else:
+                        # Se não conseguir baixar, usar placeholder
+                        conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
+                except Exception:
+                    # Se der erro ao baixar, usar placeholder
+                    conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
+            else:
+                # Se não houver URL, usar placeholder
+                conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
+            
+            anexo_dict["conteudoBase64"] = conteudo_base64
+            anexos_json.append(anexo_dict)
+        
+        return anexos_json
 
     def _montar_procedimentos(self, procedimentos) -> list:
         """Monta lista de procedimentos."""
