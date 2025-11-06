@@ -20,7 +20,42 @@ fi
 # Verifica se Docker está rodando
 if ! docker ps &> /dev/null; then
   echo "❌ Docker nao esta rodando!"
-  echo "Por favor, inicie o Docker"
+  echo ""
+  echo "💡 Para iniciar o Docker:"
+  echo ""
+  
+  # Detecta o sistema operacional
+  if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]] || [[ -n "$WINDIR" ]]; then
+    echo "   Windows:"
+    echo "   1. Abra o Docker Desktop"
+    echo "   2. Aguarde o Docker iniciar completamente"
+    echo "   3. Execute este script novamente"
+    echo ""
+    echo "   Ou inicie manualmente:"
+    echo "   - Procure por 'Docker Desktop' no menu Iniciar"
+    echo "   - Ou execute: start 'C:\Program Files\Docker\Docker\Docker Desktop.exe'"
+  elif [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "   macOS:"
+    echo "   1. Abra o Docker Desktop"
+    echo "   2. Aguarde o Docker iniciar completamente"
+    echo "   3. Execute este script novamente"
+    echo ""
+    echo "   Ou inicie manualmente:"
+    echo "   open -a Docker"
+  else
+    echo "   Linux:"
+    echo "   1. Inicie o serviço Docker:"
+    echo "      sudo systemctl start docker"
+    echo ""
+    echo "   2. Ou se usar Docker Desktop:"
+    echo "      systemctl --user start docker-desktop"
+    echo ""
+    echo "   3. Execute este script novamente"
+  fi
+  
+  echo ""
+  echo "   Verifique se o Docker está rodando com:"
+  echo "   docker ps"
   exit 1
 fi
 

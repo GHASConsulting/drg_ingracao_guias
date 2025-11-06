@@ -24,9 +24,36 @@ if %ERRORLEVEL% neq 0 (
 docker ps >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo ❌ Docker nao esta rodando!
-    echo Por favor, inicie o Docker Desktop
-    pause
-    exit /b 1
+    echo.
+    echo 💡 Para iniciar o Docker Desktop:
+    echo    1. Abra o Docker Desktop pelo menu Iniciar
+    echo    2. Aguarde o Docker iniciar completamente ^(icone na bandeja^)
+    echo    3. Execute este script novamente
+    echo.
+    echo    Ou tente iniciar automaticamente...
+    
+    :: Tenta iniciar o Docker Desktop automaticamente
+    if exist "C:\Program Files\Docker\Docker\Docker Desktop.exe" (
+        echo 🐳 Tentando iniciar Docker Desktop...
+        start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+        echo ⏳ Aguarde 30 segundos para o Docker iniciar...
+        timeout /t 30 /nobreak >nul
+        
+        :: Verifica novamente
+        docker ps >nul 2>&1
+        if %ERRORLEVEL% neq 0 (
+            echo ❌ Docker ainda nao esta rodando!
+            echo    Por favor, inicie manualmente e tente novamente
+            pause
+            exit /b 1
+        )
+        echo ✅ Docker iniciado com sucesso!
+    ) else (
+        echo    Docker Desktop nao encontrado em C:\Program Files\Docker\Docker\
+        echo    Por favor, instale ou inicie manualmente
+        pause
+        exit /b 1
+    )
 )
 
 echo ✅ Docker encontrado e rodando
