@@ -4,13 +4,14 @@ services:
     build: .
     container_name: drg-api
     ports:
-      - "${PORT:-8001}:8000"
+      # Formato: PORTA_EXTERNA:PORTA_INTERNA
+      # Porta externa (host): 8001 - acesse http://localhost:8001
+      # Porta interna (container): 8000 - onde o uvicorn roda
+      - "${PORT_EXTERNA:-8001}:${PORT:-8000}"
     volumes:
       # Usar volume nomeado para logs (não precisa de compartilhamento de diretório)
       - drg_logs:/app/logs
-      # .env como bind mount com :ro (read-only) - mais simples de compartilhar
-      # Se der erro, o env_file já carrega as variáveis, então pode remover esta linha
-      - ./.env:/app/.env:ro
+      # .env não precisa ser montado - env_file já carrega as variáveis
     env_file:
       - .env
     environment:

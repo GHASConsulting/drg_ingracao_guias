@@ -43,11 +43,11 @@ COPY . .
 # Criar diretório de logs
 RUN mkdir -p logs
 
-# Expor porta
+# Expor porta (padrão, pode ser sobrescrita via variável de ambiente)
 EXPOSE 8000
 
 # Definir variável de ambiente para desenvolvimento
 ENV PYTHONUNBUFFERED=1
 
-# Comando para iniciar a aplicação
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando para iniciar a aplicação (porta vem do .env via PORT ou padrão 8000)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
