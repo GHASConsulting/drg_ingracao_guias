@@ -1,374 +1,302 @@
-# 🏥 Sistema DRG - Guias de Internação
+# 📚 Documentação do Sistema DRG - FastAPI
 
-Sistema para processamento automático e envio de guias de internação para a API DRG Brasil usando FastAPI.
+## 📖 Índice da Documentação
 
-## ✨ Características
+### **📋 Documentação Principal**
 
-- 🚀 **FastAPI** - Framework moderno e rápido
-- 🗄️ **Multi-banco** - Oracle, PostgreSQL, SQLite
-- 🤖 **Monitoramento Automático** - Processa guias em lote
-- 📊 **Logs Detalhados** - Rastreamento completo
-- 🐳 **Docker Ready** - Deploy simplificado
+- **[README.md](../README.md)** - Documentação principal do projeto (na raiz)
 
-## 🎯 Início Rápido
+### **📄 Documentação Técnica**
 
-**Método Principal:** Use os scripts `.bat` (Windows) ou `.sh` (Linux/Mac) para iniciar a aplicação rapidamente:
+- **[API_ROUTES.md](./API_ROUTES.md)** - Documentação completa das rotas da API
+- **[INSOMNIA_TESTS.md](./INSOMNIA_TESTS.md)** - Testes da API com Insomnia
+- **[MONITORAMENTO_AUTOMATICO.md](./MONITORAMENTO_AUTOMATICO.md)** - Sistema de monitoramento automático
+- **[MONITORAMENTO_DRG.md](./MONITORAMENTO_DRG.md)** - Logs e monitoramento DRG
 
-```bash
-# Windows - Desenvolvimento
-start_drg_api_dev.bat
+### **🗺️ Documentação de Desenvolvimento**
 
-# Windows - Produção
-start_drg_api_prod.bat
+- **[MAPA_DESENVOLVIMENTO.md](./MAPA_DESENVOLVIMENTO.md)** - Mapa completo do desenvolvimento
+- **[REGRAS_DESENVOLVIMENTO.md](./REGRAS_DESENVOLVIMENTO.md)** - Regras e decisões do projeto
 
-# Linux/Mac - Produção
-./start_drg_api_prod.sh
-```
+### **📊 Especificações e Dados**
 
-Estes scripts fazem tudo automaticamente: ativam ambiente virtual, configuram Oracle, testam banco e iniciam a API.
-
-**Acesse:** http://localhost:8000/docs
-
-## 🚀 Instalação Rápida
-
-### Pré-requisitos
-
-- Python 3.11+ ou Docker
-- Oracle Instant Client (se usar Oracle)
-- Credenciais da API DRG
-
-### 1. Clone e Configure
-
-```bash
-# Clone o repositório
-git clone https://github.com/GHASConsulting/drg_ingracao_guias.git
-cd drg_guias
-
-# Configure o ambiente
-cp env.example .env
-```
-
-### 2. Edite o arquivo `.env`
-
-```env
-# AMBIENTE
-DEVELOPMENT=True          # True=dev, False=produção
-
-# DATABASE (Escolha um)
-DATABASE_TYPE=sqlite      # sqlite, oracle, postgresql
-DATABASE_URL=sqlite:///database/teste_drg.db
-
-# ORACLE (Produção)
-# DATABASE_TYPE=oracle
-# ORACLE_HOST=servidor
-# ORACLE_PORT=1521
-# ORACLE_SID=XE
-# ORACLE_USERNAME=usuario
-# ORACLE_PASSWORD=senha
-# ORACLE_DIR=C:\instantclient_21_13  # Windows
-# ORACLE_DIR=/opt/oracle/instantclient_21_17  # Linux
-
-# DRG API
-DRG_USERNAME=seu_usuario
-DRG_PASSWORD=sua_senha
-DRG_API_KEY=sua_chave
-AUTH_API_URL=https://api-autenticacao.iagsaude.com/login
-DRG_API_URL=https://api-hospitalar.iagsaude.com/integracao/guias/save
-
-# MONITORAMENTO
-AUTO_MONITOR_ENABLED=True
-MONITOR_INTERVAL_MINUTES=5
-```
-
-## ⚡ Executar a Aplicação (Método Principal)
-
-### 🪟 Windows - Desenvolvimento
-
-```bash
-# Duplo clique ou execute no terminal
-start_drg_api_dev.bat
-```
-
-Este script:
-
-- ✅ Ativa o ambiente virtual automaticamente
-- ✅ Configura variáveis Oracle
-- ✅ Testa conexão com banco
-- ✅ Inicia a aplicação FastAPI
-
-**Acesse:** http://localhost:8000/docs
-
-### 🐧 Linux/Mac - Produção
-
-```bash
-# Dar permissão de execução
-chmod +x start_drg_api_prod.sh
-
-# Executar
-./start_drg_api_prod.sh
-```
-
-### 🪟 Windows - Produção
-
-```bash
-# Executar no terminal
-start_drg_api_prod.bat
-```
+- **Componente de Comunicação.pdf** - Especificação oficial DRG
+- **Componente Conteudo Estrutura.xlsx** - Estrutura dos dados
+- **Entrada.json** - Exemplo de entrada
+- **Saida.json** - Exemplo de saída
 
 ---
 
-## 🔄 Métodos Alternativos (Secundários)
+## 📋 Visão Geral do Sistema
 
-### 🐍 Executar com Python Direto
+Sistema desenvolvido em Python com FastAPI para processamento, validação e gerenciamento de guias de internação hospitalar. O sistema recebe lotes de guias em formato JSON, processa as informações, valida os dados e retorna o status de processamento para cada guia.
 
-```bash
-# Windows
-venv\Scripts\activate
-python main.py
+## 🎯 Objetivo
 
-# Linux/Mac
-source venv/bin/activate
-python main.py
-```
+Criar uma API REST robusta que:
 
-### 🐳 Executar com Docker
+- Receba lotes de guias de internação em formato JSON
+- Valide os dados conforme especificações técnicas
+- Processe e armazene as informações automaticamente
+- Monitore a tabela de guias e processe em lote (até 10 por vez)
+- Integre com a API do DRG Brasil para envio de guias
+- Forneça logs detalhados de todo o processo
 
-```bash
-# Construir e iniciar
-docker-compose --profile production up --build -d
+## 🏗️ Arquitetura do Sistema
 
-# Ver logs
-docker-compose logs -f drg-api
+### **Padrão Arquitetural**
 
-# Parar
-docker-compose down
+- **FastAPI**: Framework moderno e rápido
+- **MVC (Model-View-Controller)**: Separação de responsabilidades
+- **Repository Pattern**: Camada de acesso a dados
+- **Service Layer**: Lógica de negócio isolada
+- **API Gateway**: Interface única para comunicação externa
 
-# Acesse: http://localhost:8000/docs
-```
-
-## ✅ Testar Conexão com Banco
-
-### SQLite
-
-```bash
-# O banco será criado automaticamente em database/teste_drg.db
-```
-
-### Oracle
-
-```bash
-# 1. Instale o Oracle Instant Client
-# Windows: C:\instantclient_21_13
-# Linux: /opt/oracle/instantclient_21_17
-
-# 2. Configure no .env
-DATABASE_TYPE=oracle
-ORACLE_HOST=servidor
-ORACLE_PORT=1521
-ORACLE_SID=XE
-ORACLE_USERNAME=usuario
-ORACLE_PASSWORD=senha
-
-# 3. Teste a conexão
-python -c "import cx_Oracle; print('✅ Oracle OK')"
-```
-
-### PostgreSQL
-
-```bash
-# Configure no .env
-DATABASE_TYPE=postgresql
-DATABASE_URL=postgresql://usuario:senha@servidor:5432/database
-
-# Teste a conexão
-python -c "import psycopg2; print('✅ PostgreSQL OK')"
-```
-
-## 📊 Verificar se Está Funcionando
-
-```bash
-# Health check
-curl http://localhost:8000/api/v1/health
-
-# Status do sistema
-curl http://localhost:8000/api/v1/status
-
-# Monitoramento
-curl http://localhost:8000/api/v1/monitoramento/status
-
-# Ver logs
-tail -f logs/drg_guias.log
-```
-
-## 🧪 Testes
-
-```bash
-# Teste completo da API
-python tests/testar_api.py
-
-# Teste DRG com logs
-python tests/testar_drg_com_logs.py
-
-# Teste de monitoramento
-python tests/testar_monitoramento.py
-```
-
-## 📚 API Endpoints
-
-**Base URL:** `http://localhost:8000/api/v1`
-
-**Principais:**
-
-- `GET /health` - Health check
-- `GET /status` - Status do sistema
-- `GET /guias` - Listar guias
-- `GET /guias/{id}` - Consultar guia
-- `POST /guias/{id}/processar` - Processar guia
-- `GET /monitoramento` - Status do monitoramento
-
-**Documentação interativa:**
-
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
-
-## 🔄 Como Funciona
+### **Camadas da Aplicação**
 
 ```
-1. Cliente insere guia na tabela (inovemed_tbl_guias)
-   ↓
-2. Sistema monitora automaticamente (a cada X minutos)
-   ↓
-3. Detecta guias com status 'A' (Aguardando)
-   ↓
-4. Processa em lote (até 10 guias por vez)
-   ↓
-5. Monta JSON completo
-   ↓
-6. Envia para API DRG
-   ↓
-7. Atualiza status (T=Transmitida, E=Erro)
+┌─────────────────────────────────────┐
+│      Monitor Service Layer          │ ← Monitoramento Automático
+├─────────────────────────────────────┤
+│         FastAPI Routes              │ ← API Endpoints + Dependency Injection
+├─────────────────────────────────────┤
+│         Service Layer               │ ← Business Logic + DRG Integration
+├─────────────────────────────────────┤
+│        Repository Layer             │ ← Data Access + Queue Management
+├─────────────────────────────────────┤
+│         Model Layer                 │ ← SQLAlchemy Models + Queue Table
+├─────────────────────────────────────┤
+│        Database Layer               │ ← Oracle/PostgreSQL/Firebird/SQLite
+└─────────────────────────────────────┘
 ```
 
-## 📁 Estrutura de Diretórios
+### **Fluxo Arquitetural**
 
 ```
-drg_guias/
-├── app/
-│   ├── config/          # Configurações
-│   ├── database/        # Conexão com banco
-│   ├── models/          # Models SQLAlchemy
-│   ├── routes/          # Rotas FastAPI
-│   ├── services/        # Serviços (DRG, Monitor)
-│   └── utils/           # Utilitários
-├── database/            # Banco SQLite
-├── docs/                # Documentação
-├── logs/                # Logs da aplicação
-├── tests/               # Scripts de teste
-├── .env                 # Configurações (criar a partir de env.example)
-├── docker-compose.yml   # Docker Compose
-├── main.py              # Aplicação principal
-└── requirements.txt     # Dependências Python
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Cliente       │───▶│  Tabela Guias    │───▶│  Monitor        │
+│   (Insere dados)│    │  (inovemed_tbl_  │    │  Automático     │
+│                 │    │   guias)         │    │  (Lote até 10)  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                         │
+                                                         ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │  Atualiza       │◀───│  API DRG        │
+                       │  Status         │    │  (Lote)         │
+                       └─────────────────┘    └─────────────────┘
 ```
 
-## 🏗️ Tabelas do Banco
+## 🚀 Tecnologias Utilizadas
 
-### inovemed_tbl_guias (Principal)
+### **Backend**
+
+- **FastAPI 0.104.1**: Framework web moderno e rápido
+- **Uvicorn**: Servidor ASGI para FastAPI
+- **Pydantic v2**: Validação e serialização de dados
+- **SQLAlchemy 2.0**: ORM para acesso ao banco de dados
+- **Background Tasks**: Monitoramento automático da tabela
+- **AsyncIO**: Processamento assíncrono integrado
+
+### **Banco de Dados**
+
+- **Oracle**: Banco principal (produção)
+- **PostgreSQL**: Alternativa
+- **Firebird**: Alternativa
+- **SQLite**: Desenvolvimento e testes
+
+### **Integração Externa**
+
+- **DRG Brasil API**: Integração com sistema externo
+- **JWT Authentication**: Autenticação segura
+- **HTTP/HTTPS**: Comunicação REST
+
+## 📊 Estrutura de Dados
+
+### **Tabela Principal: inovemed_tbl_guias**
 
 ```sql
-INSERT INTO inovemed_tbl_guias (
-    numero_guia, codigo_operadora, tp_status, ...
-) VALUES (
-    'R123456', '3945', 'A', ...  -- tp_status='A' (Aguardando)
+CREATE TABLE inovemed_tbl_guias (
+    id INTEGER PRIMARY KEY,
+    numero_guia VARCHAR(50) NOT NULL,
+    codigo_operadora VARCHAR(20) NOT NULL,
+    data_autorizacao DATE,
+    situacao_guia VARCHAR(1),
+    tp_status VARCHAR(1) DEFAULT 'A', -- A=Aguardando, T=Transmitida, E=Erro
+    data_processamento DATETIME,
+    mensagem_erro TEXT,
+    tentativas INTEGER DEFAULT 0,
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-**Status da Guia:**
+### **Tabelas Relacionadas**
 
-- `'A'` - Aguardando processamento
-- `'P'` - Processando
-- `'T'` - Transmitida com sucesso
-- `'E'` - Erro no processamento
+- **inovemed_tbl_anexos**: Anexos das guias
+- **inovemed_tbl_procedimentos**: Procedimentos das guias
+- **inovemed_tbl_diagnosticos**: Diagnósticos das guias
 
-### Tabelas Relacionadas
+## 🔧 Configuração e Instalação
 
-- `inovemed_tbl_anexos` - Documentos anexos
-- `inovemed_tbl_procedimentos` - Procedimentos da guia
-- `inovemed_tbl_diagnosticos` - Diagnósticos (CID-10)
+### **1. Pré-requisitos**
 
-## 🔧 Troubleshooting
+- Python 3.11+
+- Virtual Environment
+- Redis (para Celery)
 
-### Aplicação não inicia
+### **2. Instalação**
 
 ```bash
-# Verificar se .env existe
-ls -la .env
+# Clone o repositório
+git clone <repository-url>
+cd drg_guias
 
-# Ver logs
-tail -f logs/drg_guias.log
+# Crie ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# ou
+venv\Scripts\activate     # Windows
 
-# Verificar dependências
+# Instale dependências
 pip install -r requirements.txt
 ```
 
-### Erro de conexão Oracle
+### **3. Configuração**
 
 ```bash
-# Verificar se Instant Client está instalado
-# Windows: C:\instantclient_21_13
-# Linux: /opt/oracle/instantclient_21_17
+# Copie o arquivo de exemplo
+cp env.example .env
 
-# Verificar variáveis de ambiente
-echo $ORACLE_DIR
-echo $LD_LIBRARY_PATH
+# Configure as variáveis necessárias
+nano .env
 ```
 
-### Guias não são processadas
+### **4. Execução**
 
 ```bash
-# Verificar se monitoramento está ativo
-curl http://localhost:8000/api/v1/monitoramento/status
+# Iniciar a API FastAPI
+python main.py
 
-# Verificar logs
-tail -f logs/drg_guias.log | grep -i "monitoramento"
-
-# Verificar guias no banco
-# Guias devem ter tp_status='A'
+# A API estará disponível em:
+# http://localhost:8000
+# Documentação: http://localhost:8000/docs
 ```
 
-### Docker não inicia
+## 📚 Documentação da API
+
+### **Documentação Automática**
+
+A FastAPI gera automaticamente:
+
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
+
+### **Endpoints Principais**
+
+- `GET /api/v1/health` - Health check
+- `GET /api/v1/status` - Status do sistema
+- `GET /api/v1/guias` - Listar guias
+- `GET /api/v1/guias/{id}` - Consultar guia específica
+- `POST /api/v1/guias/{id}/processar` - Processar guia
+- `GET /api/v1/monitoramento` - Monitoramento do sistema
+
+## 🧪 Testes
+
+### **Executar Testes**
 
 ```bash
-# Verificar se Docker está rodando
-docker ps
+# Testar todas as rotas
+python testar_api.py
 
-# Ver logs
-docker-compose logs
-
-# Reconstruir
-docker-compose down
-docker-compose up --build
+# Adicionar dados de teste
+python adicionar_guias.py
 ```
 
-## 📖 Documentação Completa
+### **Resultado dos Testes**
 
-- [API Routes](docs/API_ROUTES.md)
-- [Database Schema](docs/DATABASE_SCHEMA.md)
-- [Monitoramento Automático](docs/MONITORAMENTO_AUTOMATICO.md)
-- [Authentication Guide](docs/AUTHENTICATION_GUIDE.md)
+```
+🎯 Resultado: 8/8 testes passaram
+🎉 TODOS OS TESTES PASSARAM!
+```
 
-## 🆘 Suporte
+## 🔗 Integração com DRG Brasil
 
-- **Documentação:** [docs/README.md](docs/README.md)
-- **Logs:** `logs/drg_guias.log`
-- **Testes:** `tests/` folder
-- **API Docs:** http://localhost:8000/docs
+### **Configuração**
 
-## 📝 Changelog
+```bash
+# URLs de teste
+AUTH_API_URL=https://api-autenticacao.iagsaude.com/login
+DRG_API_URL=https://api-hospitalar.iagsaude.com/integracao/guias/save
 
-- ✅ FastAPI migration
-- ✅ Monitoramento automático (lote de 10 guias)
-- ✅ Logs detalhados
-- ✅ Docker completa
-- ✅ Multi-banco (Oracle, PostgreSQL, SQLite)
-- ✅ Segurança (rate limiting)
-- ✅ Processamento em tempo real
+# Credenciais
+DRG_USERNAME=seu_usuario
+DRG_PASSWORD=sua_senha
+DRG_API_KEY=seu_codigo_unico
+```
+
+### **Fluxo de Autenticação**
+
+1. **Login**: POST para `/login` com credenciais
+2. **Token JWT**: Recebido com expiração de 4 horas
+3. **Envio**: POST para `/integracao/guias/save` com JWT
+
+### **Formato de Envio**
+
+```json
+{
+  "loteGuias": {
+    "guia": [
+      {
+        "codigoOperadora": "4764",
+        "numeroGuia": "R679541",
+        "dataAutorizacao": "2025-08-02"
+        // ... outros campos
+      }
+    ]
+  }
+}
+```
+
+## 📈 Status do Projeto
+
+### **✅ Concluído**
+
+- [x] Migração Flask → FastAPI
+- [x] Modelos SQLAlchemy
+- [x] Schemas Pydantic v2
+- [x] Rotas da API
+- [x] Serviços de negócio
+- [x] Integração DRG
+- [x] Testes completos
+- [x] Documentação automática
+
+### **🔄 Em Desenvolvimento**
+
+- [ ] Processamento Celery
+- [ ] Retry automático
+- [ ] Monitoramento avançado
+
+### **📊 Métricas**
+
+- **8/8 testes** passando (100% sucesso)
+- **Todas as rotas** funcionando
+- **Banco de dados** operacional
+- **Documentação** automática disponível
+
+## 🎯 Próximos Passos
+
+1. **Implementar processamento Celery** para fila
+2. **Configurar retry automático** para falhas
+3. **Adicionar mais dados de teste**
+4. **Implementar monitoramento** avançado
+
+## 📞 Suporte
+
+Para dúvidas ou suporte, consulte:
+
+- **Documentação**: `http://localhost:8000/docs`
+- **Logs**: `logs/app.log`
+- **Testes**: Execute `python testar_api.py`
+
+---
+
+_Última atualização: 2025-09-23 - Migração FastAPI Concluída_

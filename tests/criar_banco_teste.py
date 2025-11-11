@@ -121,7 +121,7 @@ def criar_dados_ficticios(engine):
             numero_protocolo_documento="44125745841",
             formato_documento="2",
             sequencial_documento="7854",
-            url_documento="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/800px-Google_2015_logo.svg.png",
+            caminho_documento="docs/hc1_balladinstinct_tab.pdf",
             observacao_documento="OBSERVAÇÃO DO DOCUMENTO TESTE 02",
             tipo_documento="03",
         )

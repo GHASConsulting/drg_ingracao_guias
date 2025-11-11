@@ -1,17 +1,27 @@
 from datetime import datetime
 from typing import Dict, Any
+from pathlib import Path
 import logging
 import base64
-import requests
 from app.models import Guia, Anexo, Procedimento, Diagnostico
 from app.utils.logger import drg_logger
+from app.config.config import get_settings
+
+
+class AttachmentProcessingError(Exception):
+    """Erro ao preparar anexos para envio."""
 
 
 class GuiaService:
     """Serviço para operações com guias."""
 
+    MAX_ANEXO_BYTES = 20 * 1024 * 1024  # 20 MB
+
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        settings = get_settings()
+        base_path_value = getattr(settings, "ANEXOS_BASE_PATH", None)
+        self.base_path = Path(base_path_value).expanduser() if base_path_value else None
 
     def montar_json_drg(self, guia: Guia) -> Dict[str, Any]:
         """Monta o JSON no formato esperado pela API DRG."""
@@ -138,33 +148,70 @@ class GuiaService:
                 "sequencialDocumento": str(anexo.sequencial_documento) if anexo.sequencial_documento else "1",
                 "dataCriacao": self._format_date(anexo.data_criacao),
                 "nome": anexo.nome,
-                "urlDocumento": anexo.url_documento,
                 "observacaoDocumento": anexo.observacao_documento or "",
                 "tipoDocumento": anexo.tipo_documento,
             }
-            
-            # Se houver URL, tentar baixar e converter para base64
-            # Caso contrário, enviar um placeholder base64 válido
-            conteudo_base64 = ""
-            if anexo.url_documento:
-                try:
-                    response = requests.get(anexo.url_documento, timeout=10)
-                    if response.status_code == 200:
-                        conteudo_base64 = base64.b64encode(response.content).decode('utf-8')
-                    else:
-                        # Se não conseguir baixar, usar placeholder
-                        conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
-                except Exception:
-                    # Se der erro ao baixar, usar placeholder
-                    conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
-            else:
-                # Se não houver URL, usar placeholder
-                conteudo_base64 = base64.b64encode(b"placeholder").decode('utf-8')
-            
-            anexo_dict["conteudoBase64"] = conteudo_base64
+
+            try:
+                anexo_dict["conteudoBase64"] = self._gerar_conteudo_base64(anexo)
+            except AttachmentProcessingError as err:
+                identificador = anexo.nome or anexo.id or "desconhecido"
+                mensagem = f"Falha ao preparar anexo '{identificador}': {err}"
+                self.logger.error(mensagem)
+                raise
+
             anexos_json.append(anexo_dict)
         
         return anexos_json
+
+    def _gerar_conteudo_base64(self, anexo: Anexo) -> str:
+        """Carrega o arquivo do anexo, valida e gera Base64."""
+        caminho = (anexo.caminho_documento or "").strip()
+        if not caminho:
+            raise AttachmentProcessingError("caminho_documento não informado")
+
+        arquivo_path = Path(caminho)
+        if not arquivo_path.is_absolute():
+            if self.base_path:
+                arquivo_path = (self.base_path / arquivo_path).expanduser()
+            else:
+                arquivo_path = arquivo_path.expanduser()
+
+        # Normalizar caminho (resolve sem exigir existência para preservar mensagens)
+        try:
+            arquivo_path = arquivo_path.resolve(strict=False)
+        except OSError:
+            # Em ambientes onde resolve pode falhar, manter caminho atual
+            pass
+
+        if not arquivo_path.exists():
+            raise AttachmentProcessingError(
+                f"arquivo não encontrado em '{arquivo_path}'"
+            )
+
+        if not arquivo_path.is_file():
+            raise AttachmentProcessingError(f"caminho '{arquivo_path}' não é um arquivo")
+
+        try:
+            tamanho = arquivo_path.stat().st_size
+        except OSError as exc:
+            raise AttachmentProcessingError(f"não foi possível obter tamanho do arquivo: {exc}") from exc
+
+        if tamanho > self.MAX_ANEXO_BYTES:
+            raise AttachmentProcessingError(
+                f"arquivo excede o limite de 20MB (tamanho atual: {tamanho / (1024 * 1024):.2f}MB)"
+            )
+
+        try:
+            with arquivo_path.open("rb") as arquivo:
+                conteudo = arquivo.read()
+        except OSError as exc:
+            raise AttachmentProcessingError(f"erro ao ler arquivo: {exc}") from exc
+
+        if not conteudo:
+            raise AttachmentProcessingError("arquivo vazio")
+
+        return base64.b64encode(conteudo).decode("utf-8")
 
     def _montar_procedimentos(self, procedimentos) -> list:
         """Monta lista de procedimentos."""

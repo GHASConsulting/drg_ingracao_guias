@@ -241,7 +241,7 @@ def adicionar_guias_automaticas(quantidade=10):
                     ),
                     formato_documento="2",
                     sequencial_documento=str(random.randint(1000, 9999)),
-                    url_documento="https://example.com/doc.pdf",
+                    caminho_documento="docs/hc1_balladinstinct_tab.pdf",
                     observacao_documento=f"OBSERVAÇÃO DO DOCUMENTO {i+1}",
                     tipo_documento="03",
                 )

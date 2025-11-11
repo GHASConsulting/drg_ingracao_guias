@@ -110,7 +110,7 @@ iniciar_*.py
 
 # SQL files (database dumps and migration scripts)
 *.sql
-!database/*.sql
+!database/verificar_tabelas.sql
 
 # Database files
 *.db

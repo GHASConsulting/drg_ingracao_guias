@@ -269,9 +269,15 @@ class MonitorCamposService:
 
         # Verificar se algum campo crítico foi modificado
         # Como não temos histórico, vamos usar a data_atualizacao como indicador
-        if guia.data_atualizacao and guia.data_atualizacao > guia.data_ultima_consulta:
-            # Se foi atualizada após a última consulta, considerar que houve mudança
-            campos_mudados = self.campos_criticos.copy()
+        data_atualizacao = guia.data_atualizacao
+        data_ultima_consulta = guia.data_ultima_consulta
+
+        if data_atualizacao:
+            houve_mudanca = (
+                data_ultima_consulta is None or data_atualizacao > data_ultima_consulta
+            )
+            if houve_mudanca:
+                campos_mudados = self.campos_criticos.copy()
 
         # Detectar senha preenchida por trigger quando guia for aprovada
         if self._detectar_senha_preenchida(guia):

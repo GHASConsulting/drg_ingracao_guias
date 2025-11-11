@@ -24,9 +24,9 @@ class Anexo(Base):
     )  # Número sequencial de referência do procedimento ou item assistencial (preenchido em caso de envio de documento referente a um item específico)
     data_criacao = Column(Date, nullable=False)
     nome = Column(String(500), nullable=False)  # Nome do arquivo (obrigatório)
-    url_documento = Column(
+    caminho_documento = Column(
         String(500), nullable=False
-    )  # URL para download do documento (obrigatório)
+    )  # Caminho local ou em rede do arquivo para geração de Base64
     observacao_documento = Column(
         String(500)
     )  # Observação/Justificativa sobre o documento (campo opcional)

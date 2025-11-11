@@ -13,7 +13,7 @@ class AnexoSchema(BaseModel):
     sequencial_documento: str = Field(..., min_length=1, max_length=10)
     data_criacao: date
     nome: str = Field(..., min_length=1, max_length=255)
-    url_documento: str = Field(..., pattern=r"^https?://")
+    caminho_documento: str = Field(..., min_length=1, max_length=500)
     observacao_documento: Optional[str] = Field(None, max_length=500)
     tipo_documento: str = Field(..., min_length=1, max_length=2)
 

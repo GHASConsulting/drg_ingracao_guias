@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
 
+    # Configurações de anexos
+    ANEXOS_BASE_PATH: Optional[str] = None
+
     # Configurações de segurança
     HTTP_TIMEOUT: int = 60
     TOKEN_REFRESH_INTERVAL: float = 3.5
