@@ -44,7 +44,7 @@ class MonitorCamposService:
         ]
 
         # Campos que indicam status final
-        self.status_final = ["A", "N"]  # Aprovado, Negado
+        self.status_final = ["A", "N", "P"]  # Aprovado, Negado, Parcialmente aprovado
 
         # Intervalo de monitoramento (em minutos)
         self.intervalo_monitoramento = getattr(
@@ -304,7 +304,7 @@ class MonitorCamposService:
             return True
 
         # Finalizar se já foi consultada muitas vezes
-        if (guia.tentativas or 0) >= 5:
+        if (guia.tentativas or 0) >= 100:
             return True
 
         return False
