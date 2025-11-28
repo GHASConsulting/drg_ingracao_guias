@@ -19,8 +19,8 @@ class GuiaService:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        settings = get_settings()
-        base_path_value = getattr(settings, "ANEXOS_BASE_PATH", None)
+        self.settings = get_settings()
+        base_path_value = getattr(self.settings, "ANEXOS_BASE_PATH", None)
         self.base_path = Path(base_path_value).expanduser() if base_path_value else None
 
     def montar_json_drg(self, guia: Guia) -> Dict[str, Any]:
@@ -63,13 +63,21 @@ class GuiaService:
                         "numeroRegistroProfissional": guia.numero_registro_profissional,
                         "ufProfissional": guia.uf_profissional,
                         "codigoCbo": guia.codigo_cbo,
-                        # Dados do hospital
-                        "codigoContratado": guia.codigo_contratado,
-                        "nomeHospital": guia.nome_hospital,
-                        "porteHospital": guia.porte_hospital,
-                        "complexidadeHospital": guia.complexidade_hospital,
-                        "esferaAdministrativa": guia.esfera_administrativa,
-                        "enderecoHospital": guia.endereco_hospital,
+                        # Dados do hospital (sempre vêm do .env, nunca do banco)
+                        "codigoContratado": getattr(
+                            self.settings, "HOSPITAL_CODIGO_CONTRATADO", None
+                        ),
+                        "nomeHospital": getattr(self.settings, "HOSPITAL_NOME", None),
+                        "porteHospital": getattr(self.settings, "HOSPITAL_PORTE", None),
+                        "complexidadeHospital": getattr(
+                            self.settings, "HOSPITAL_COMPLEXIDADE", None
+                        ),
+                        "esferaAdministrativa": getattr(
+                            self.settings, "HOSPITAL_ESFERA_ADMINISTRATIVA", None
+                        ),
+                        "enderecoHospital": getattr(
+                            self.settings, "HOSPITAL_ENDERECO", None
+                        ),
                         "dataSugeridaInternacao": self._format_date(
                             guia.data_sugerida_internacao
                         ),
@@ -78,7 +86,8 @@ class GuiaService:
                         "regimeInternacao": guia.regime_internacao,
                         "diariasSolicitadas": str(guia.diarias_solicitadas),
                         "previsaoUsoOpme": guia.previsao_uso_opme or "N",
-                        "previsaoUsoQuimioterapico": guia.previsao_uso_quimioterapico or "N",
+                        "previsaoUsoQuimioterapico": guia.previsao_uso_quimioterapico
+                        or "N",
                         "indicacaoClinica": guia.indicacao_clinica,
                         "indicacaoAcidente": guia.indicacao_acidente,
                         "tipoAcomodacaoSolicitada": guia.tipo_acomodacao_solicitada,
@@ -92,7 +101,7 @@ class GuiaService:
                             else None
                         ),
                         "tipoAcomodacaoAutorizada": guia.tipo_acomodacao_autorizada,
-                        "cnesAutorizado": guia.cnes_autorizado,
+                        "cnesAutorizado": getattr(self.settings, "HOSPITAL_CNES", None),
                         "observacaoGuia": guia.observacao_guia,
                         "dataSolicitacao": self._format_date(guia.data_solicitacao),
                         "justificativaOperadora": guia.justificativa_operadora,
@@ -145,7 +154,11 @@ class GuiaService:
                 "numeroLoteDocumento": anexo.numero_lote_documento or "",
                 "numeroProtocoloDocumento": anexo.numero_protocolo_documento or "",
                 "formatoDocumento": anexo.formato_documento,
-                "sequencialDocumento": str(anexo.sequencial_documento) if anexo.sequencial_documento else "1",
+                "sequencialDocumento": (
+                    str(anexo.sequencial_documento)
+                    if anexo.sequencial_documento
+                    else "1"
+                ),
                 "dataCriacao": self._format_date(anexo.data_criacao),
                 "nome": anexo.nome,
                 "observacaoDocumento": anexo.observacao_documento or "",
@@ -161,7 +174,7 @@ class GuiaService:
                 raise
 
             anexos_json.append(anexo_dict)
-        
+
         return anexos_json
 
     def _gerar_conteudo_base64(self, anexo: Anexo) -> str:
@@ -190,12 +203,16 @@ class GuiaService:
             )
 
         if not arquivo_path.is_file():
-            raise AttachmentProcessingError(f"caminho '{arquivo_path}' não é um arquivo")
+            raise AttachmentProcessingError(
+                f"caminho '{arquivo_path}' não é um arquivo"
+            )
 
         try:
             tamanho = arquivo_path.stat().st_size
         except OSError as exc:
-            raise AttachmentProcessingError(f"não foi possível obter tamanho do arquivo: {exc}") from exc
+            raise AttachmentProcessingError(
+                f"não foi possível obter tamanho do arquivo: {exc}"
+            ) from exc
 
         if tamanho > self.MAX_ANEXO_BYTES:
             raise AttachmentProcessingError(
