@@ -95,12 +95,13 @@ class MonitorService:
 
             try:
                 # Buscar guias aguardando processamento
+                batch_size = self.settings.MONITOR_BATCH_SIZE
                 if self.auto_reprocess:
                     # Buscar todas as guias aguardando (comportamento atual)
                     guias_pendentes = (
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
-                        .limit(10)
+                        .limit(batch_size)
                         .all()
                     )
                 else:
@@ -109,7 +110,7 @@ class MonitorService:
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
                         .filter((Guia.tentativas == 0) | (Guia.tentativas.is_(None)))  # Só primeira tentativa
-                        .limit(10)
+                        .limit(batch_size)
                         .all()
                     )
 

@@ -270,9 +270,11 @@ class DRGService:
             # Log da requisição de envio
             drg_logger.log_request("POST", self.drg_url, headers, json_data=json_lote)
 
-            # Fazer requisição de envio
+            # Fazer requisição de envio (usar timeout do settings)
+            settings = get_settings()
+            timeout = settings.HTTP_TIMEOUT
             response = requests.post(
-                self.drg_url, json=json_lote, headers=headers, timeout=60
+                self.drg_url, json=json_lote, headers=headers, timeout=timeout
             )
 
             # Log da resposta
@@ -493,9 +495,11 @@ class DRGService:
             # Log da requisição de envio
             drg_logger.log_request("POST", self.drg_url, headers, json_data=json_drg)
 
-            # Fazer requisição de envio
+            # Fazer requisição de envio (usar timeout do settings)
+            settings = get_settings()
+            timeout = settings.HTTP_TIMEOUT
             response = requests.post(
-                self.drg_url, json=json_drg, headers=headers, timeout=60
+                self.drg_url, json=json_drg, headers=headers, timeout=timeout
             )
 
             # Log da resposta
@@ -743,9 +747,11 @@ class DRGService:
             # Log da requisição
             drg_logger.log_request("POST", self.drg_pull_url, headers, json_data=payload)
 
-            # Fazer requisição
+            # Fazer requisição (usar timeout do settings)
+            settings = get_settings()
+            timeout = settings.HTTP_TIMEOUT
             response = requests.post(
-                self.drg_pull_url, json=payload, headers=headers, timeout=60
+                self.drg_pull_url, json=payload, headers=headers, timeout=timeout
             )
 
             # Log da resposta

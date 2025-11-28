@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     ANEXOS_BASE_PATH: Optional[str] = None
 
     # Configurações de segurança
-    HTTP_TIMEOUT: int = 60
+    HTTP_TIMEOUT: int = 120  # Timeout aumentado para 120s (2 minutos) para evitar 504 em lotes grandes
     TOKEN_REFRESH_INTERVAL: float = 3.5
 
     # Configurações de monitoramento (opcional)
@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # Configurações de monitoramento automático
     AUTO_MONITOR_ENABLED: bool = True
     MONITOR_INTERVAL_MINUTES: int = 5
+    MONITOR_BATCH_SIZE: int = 5  # Tamanho do lote de guias por vez (reduzido para evitar timeout)
     MONITOR_PULL_ENABLED: bool = True  # Monitoramento PULL da DRG
     MONITOR_PULL_INTERVAL_MINUTES: int = 5  # Intervalo para buscar retorno
     MONITOR_PULL_MAX_PAGE_SIZE: int = 100  # Máximo de registros por página
