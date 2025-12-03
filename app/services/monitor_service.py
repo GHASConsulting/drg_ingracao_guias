@@ -88,20 +88,18 @@ class MonitorService:
             self._running = False
 
     async def _process_pending_guias(self):
-        """Processa guias pendentes em lote"""
+        """Processa todas as guias pendentes, enviando em lotes de 5 para a API"""
         try:
             # Obter sessão do banco
             session = get_session()
 
             try:
-                # Buscar guias aguardando processamento
-                batch_size = self.settings.MONITOR_BATCH_SIZE
+                # Buscar TODAS as guias aguardando processamento (sem limite)
                 if self.auto_reprocess:
-                    # Buscar todas as guias aguardando (comportamento atual)
+                    # Buscar todas as guias aguardando
                     guias_pendentes = (
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
-                        .limit(batch_size)
                         .all()
                     )
                 else:
@@ -110,7 +108,6 @@ class MonitorService:
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
                         .filter((Guia.tentativas == 0) | (Guia.tentativas.is_(None)))  # Só primeira tentativa
-                        .limit(batch_size)
                         .all()
                     )
 
@@ -118,12 +115,35 @@ class MonitorService:
                     self.logger.debug("📋 Nenhuma guia pendente encontrada")
                     return
 
+                total_guias = len(guias_pendentes)
+                batch_size = self.settings.MONITOR_BATCH_SIZE
+                
                 self.logger.info(
-                    f"📋 Encontradas {len(guias_pendentes)} guias pendentes"
+                    f"📋 Encontradas {total_guias} guias pendentes. Processando em lotes de {batch_size}..."
                 )
 
-                # Processar lote de guias
-                await self._process_lote_guias(session, guias_pendentes)
+                # Processar em lotes de 5 (ou o tamanho configurado)
+                total_lotes = (total_guias + batch_size - 1) // batch_size  # Arredondar para cima
+                
+                for lote_num in range(total_lotes):
+                    inicio = lote_num * batch_size
+                    fim = min(inicio + batch_size, total_guias)
+                    lote_guias = guias_pendentes[inicio:fim]
+                    
+                    self.logger.info(
+                        f"📦 Processando lote {lote_num + 1}/{total_lotes} ({len(lote_guias)} guias: {inicio + 1}-{fim})"
+                    )
+                    
+                    # Processar este lote
+                    await self._process_lote_guias(session, lote_guias)
+                    
+                    # Pequena pausa entre lotes para não sobrecarregar a API
+                    if lote_num < total_lotes - 1:  # Não pausar após o último lote
+                        await asyncio.sleep(1)  # 1 segundo entre lotes
+                
+                self.logger.info(
+                    f"✅ Ciclo completo: {total_guias} guias processadas em {total_lotes} lotes"
+                )
 
             finally:
                 session.close()

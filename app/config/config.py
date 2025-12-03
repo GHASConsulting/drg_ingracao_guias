@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # Configurações de monitoramento automático
     AUTO_MONITOR_ENABLED: bool = True
     MONITOR_INTERVAL_MINUTES: int = 5
-    MONITOR_BATCH_SIZE: int = 5  # Tamanho do lote de guias por vez (reduzido para evitar timeout)
+    MONITOR_BATCH_SIZE: int = 5  # Tamanho do lote enviado para API DRG (processa TODAS as guias 'A' em lotes deste tamanho)
     MONITOR_PULL_ENABLED: bool = True  # Monitoramento PULL da DRG
     MONITOR_PULL_INTERVAL_MINUTES: int = 5  # Intervalo para buscar retorno
     MONITOR_PULL_MAX_PAGE_SIZE: int = 100  # Máximo de registros por página
