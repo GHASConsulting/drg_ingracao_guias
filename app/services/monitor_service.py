@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 
 from app.database.database import get_session
 from app.models import Guia
@@ -20,6 +21,46 @@ from app.utils.logger import drg_logger
 
 class MonitorService:
     """Serviço para monitoramento automático da tabela de guias"""
+
+    def _is_retentable_error_from_message(self, error_msg: str) -> bool:
+        """
+        Verifica se uma mensagem de erro indica erro retentável (500, 504, timeout, connection, etc).
+
+        Args:
+            error_msg: Mensagem de erro a verificar
+
+        Returns:
+            bool: True se o erro é retentável, False caso contrário
+        """
+        if not error_msg:
+            return False
+
+        error_lower = str(error_msg).lower()
+
+        # Erros HTTP retentáveis
+        retentable_patterns = [
+            "500",  # Internal Server Error
+            "502",  # Bad Gateway
+            "503",  # Service Unavailable
+            "504",  # Gateway Timeout
+            "timeout",
+            "gateway timeout",
+            "connection",
+            "conexão",
+            "network",
+            "rede",
+            "unavailable",
+            "indisponível",
+            "server error",
+            "erro interno",
+            "internal server",
+            "temporarily",
+            "temporariamente",
+            "service unavailable",
+            "bad gateway",
+        ]
+
+        return any(pattern in error_lower for pattern in retentable_patterns)
 
     def __init__(self):
         self.settings = get_settings()
@@ -96,10 +137,34 @@ class MonitorService:
             try:
                 # Buscar TODAS as guias aguardando processamento (sem limite)
                 if self.auto_reprocess:
-                    # Buscar todas as guias aguardando
+                    # Buscar todas as guias aguardando (tp_status = 'A')
+                    # E também guias com erro retentável (tp_status = 'E' mas com erro 504, 500, timeout, etc)
                     guias_pendentes = (
                         session.query(Guia)
-                        .filter(Guia.tp_status == "A")  # Aguardando
+                        .filter(
+                            or_(
+                                Guia.tp_status == "A",  # Aguardando
+                                # Guias com erro mas que são retentáveis (504, 500, timeout, etc)
+                                and_(
+                                    Guia.tp_status == "E",
+                                    or_(
+                                        Guia.mensagem_erro.like("%504%"),
+                                        Guia.mensagem_erro.like("%500%"),
+                                        Guia.mensagem_erro.like("%timeout%"),
+                                        Guia.mensagem_erro.like("%Timeout%"),
+                                        Guia.mensagem_erro.like("%TIMEOUT%"),
+                                        Guia.mensagem_erro.like("%Gateway Timeout%"),
+                                        Guia.mensagem_erro.like("%gateway timeout%"),
+                                        Guia.mensagem_erro.like("%connection%"),
+                                        Guia.mensagem_erro.like("%Connection%"),
+                                        Guia.mensagem_erro.like("%conexão%"),
+                                        Guia.mensagem_erro.like("%Conexão%"),
+                                        Guia.mensagem_erro.like("%502%"),
+                                        Guia.mensagem_erro.like("%503%"),
+                                    ),
+                                ),
+                            )
+                        )
                         .all()
                     )
                 else:
@@ -107,7 +172,9 @@ class MonitorService:
                     guias_pendentes = (
                         session.query(Guia)
                         .filter(Guia.tp_status == "A")  # Aguardando
-                        .filter((Guia.tentativas == 0) | (Guia.tentativas.is_(None)))  # Só primeira tentativa
+                        .filter(
+                            (Guia.tentativas == 0) | (Guia.tentativas.is_(None))
+                        )  # Só primeira tentativa
                         .all()
                     )
 
@@ -117,30 +184,32 @@ class MonitorService:
 
                 total_guias = len(guias_pendentes)
                 batch_size = self.settings.MONITOR_BATCH_SIZE
-                
+
                 self.logger.info(
                     f"📋 Encontradas {total_guias} guias pendentes. Processando em lotes de {batch_size}..."
                 )
 
                 # Processar em lotes de 5 (ou o tamanho configurado)
-                total_lotes = (total_guias + batch_size - 1) // batch_size  # Arredondar para cima
-                
+                total_lotes = (
+                    total_guias + batch_size - 1
+                ) // batch_size  # Arredondar para cima
+
                 for lote_num in range(total_lotes):
                     inicio = lote_num * batch_size
                     fim = min(inicio + batch_size, total_guias)
                     lote_guias = guias_pendentes[inicio:fim]
-                    
+
                     self.logger.info(
                         f"📦 Processando lote {lote_num + 1}/{total_lotes} ({len(lote_guias)} guias: {inicio + 1}-{fim})"
                     )
-                    
+
                     # Processar este lote
                     await self._process_lote_guias(session, lote_guias)
-                    
+
                     # Pequena pausa entre lotes para não sobrecarregar a API
                     if lote_num < total_lotes - 1:  # Não pausar após o último lote
                         await asyncio.sleep(1)  # 1 segundo entre lotes
-                
+
                 self.logger.info(
                     f"✅ Ciclo completo: {total_guias} guias processadas em {total_lotes} lotes"
                 )
@@ -157,7 +226,26 @@ class MonitorService:
             self.logger.info(f"🚀 Processando lote de {len(guias)} guias")
 
             # Marcar todas as guias como processando
+            # Se alguma guia estava com tp_status = "E" mas tem erro retentável, apenas logar
             for guia in guias:
+                # Se estava com erro mas é retentável, logar para debug
+                if guia.tp_status == "E" and guia.mensagem_erro:
+                    erro_msg_lower = (guia.mensagem_erro or "").lower()
+                    erros_retentaveis = [
+                        "504",
+                        "500",
+                        "502",
+                        "503",
+                        "timeout",
+                        "connection",
+                        "conexão",
+                        "gateway",
+                    ]
+                    if any(erro in erro_msg_lower for erro in erros_retentaveis):
+                        self.logger.info(
+                            f"🔄 Reprocessando guia {guia.numero_guia} com erro retentável (era 'E', agora será processada)"
+                        )
+
                 guia.tp_status = "P"
                 if self.auto_reprocess:
                     # Garantir que tentativas não seja None
@@ -187,8 +275,13 @@ class MonitorService:
                 erro_msg = resultado.get("erro", "Erro desconhecido")
                 retentavel = resultado.get("retentavel", False)
 
+                # Verificação adicional: mesmo se retentavel=False, verificar na mensagem de erro
+                # Isso garante que erros 500, 504, timeout, etc sempre resultem em tp_status = "A"
+                if not retentavel:
+                    retentavel = self._is_retentable_error_from_message(erro_msg)
+
                 if retentavel:
-                    # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                    # Erro retentável (500, 504, timeout, conexão, etc) - manter status 'A' para reenvio
                     for guia in guias:
                         guia.tp_status = "A"  # Voltar para Aguardando
                         guia.mensagem_erro = erro_msg
@@ -214,22 +307,18 @@ class MonitorService:
         except Exception as e:
             # Erro crítico - verificar se é retentável (ex: erro de conexão com banco)
             error_msg = f"Erro crítico: {str(e)}"
-            error_lower = str(e).lower()
-            
-            # Considerar erros de conexão/network como retentáveis
-            is_connection_error = any(
-                keyword in error_lower
-                for keyword in ["connection", "conexão", "network", "timeout", "unavailable"]
-            )
-            
+
+            # Verificar se é erro retentável usando a função auxiliar
+            is_retentable = self._is_retentable_error_from_message(error_msg)
+
             for guia in guias:
-                if is_connection_error:
-                    # Erro retentável - manter status 'A'
+                if is_retentable:
+                    # Erro retentável (500, 504, timeout, connection, etc) - manter status 'A'
                     guia.tp_status = "A"
                 else:
                     # Erro não-retentável - marcar como erro
                     guia.tp_status = "E"
-                
+
                 guia.mensagem_erro = error_msg
                 if self.auto_reprocess:
                     # Garantir que tentativas não seja None
@@ -241,8 +330,10 @@ class MonitorService:
                 guia.data_processamento = datetime.utcnow()
 
             session.commit()
-            if is_connection_error:
-                self.logger.warning(f"⚠️ Erro crítico retentável ao processar lote (será reenviado): {e}")
+            if is_retentable:
+                self.logger.warning(
+                    f"⚠️ Erro crítico retentável ao processar lote (será reenviado): {e}"
+                )
             else:
                 self.logger.error(f"❌ Erro crítico ao processar lote: {e}")
             raise
@@ -279,8 +370,13 @@ class MonitorService:
                 erro_msg = resultado.get("erro", "Erro desconhecido")
                 retentavel = resultado.get("retentavel", False)
 
+                # Verificação adicional: mesmo se retentavel=False, verificar na mensagem de erro
+                # Isso garante que erros 500, 504, timeout, etc sempre resultem em tp_status = "A"
+                if not retentavel:
+                    retentavel = self._is_retentable_error_from_message(erro_msg)
+
                 if retentavel:
-                    # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                    # Erro retentável (500, 504, timeout, conexão, etc) - manter status 'A' para reenvio
                     guia.tp_status = "A"  # Voltar para Aguardando
                     guia.mensagem_erro = erro_msg
                     # Não incrementar tentativas aqui, já foi incrementado antes
@@ -301,16 +397,12 @@ class MonitorService:
         except Exception as e:
             # Erro crítico - verificar se é retentável
             error_msg = f"Erro crítico: {str(e)}"
-            error_lower = str(e).lower()
-            
-            # Considerar erros de conexão/network como retentáveis
-            is_connection_error = any(
-                keyword in error_lower
-                for keyword in ["connection", "conexão", "network", "timeout", "unavailable"]
-            )
-            
-            if is_connection_error:
-                # Erro retentável - manter status 'A'
+
+            # Verificar se é erro retentável usando a função auxiliar
+            is_retentable = self._is_retentable_error_from_message(error_msg)
+
+            if is_retentable:
+                # Erro retentável (500, 504, timeout, connection, etc) - manter status 'A'
                 guia.tp_status = "A"
                 self.logger.warning(
                     f"⚠️ Erro crítico retentável na guia {guia.numero_guia} (será reenviada): {e}"
@@ -319,7 +411,7 @@ class MonitorService:
                 # Erro não-retentável - marcar como erro
                 guia.tp_status = "E"
                 self.logger.error(f"❌ Erro crítico na guia {guia.numero_guia}: {e}")
-            
+
             guia.mensagem_erro = error_msg
             if self.auto_reprocess:
                 # Garantir que tentativas não seja None

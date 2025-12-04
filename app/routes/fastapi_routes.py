@@ -250,9 +250,15 @@ async def processar_guia(
             # Erro - verificar se é retentável
             erro_msg = resultado.get("erro", "Erro desconhecido")
             retentavel = resultado.get("retentavel", False)
+            
+            # Verificação adicional: mesmo se retentavel=False, verificar na mensagem de erro
+            # Isso garante que erros 500, 504, timeout, etc sempre resultem em tp_status = "A"
+            from app.services.drg_service import is_retentable_error
+            if not retentavel:
+                retentavel = is_retentable_error(erro_msg)
 
             if retentavel:
-                # Erro retentável (500, timeout, conexão) - manter status 'A' para reenvio
+                # Erro retentável (500, 504, timeout, conexão, etc) - manter status 'A' para reenvio
                 guia.tp_status = "A"  # Voltar para Aguardando
                 guia.mensagem_erro = erro_msg
             else:
